@@ -1,0 +1,603 @@
+m---
+title: "Visualizacion"
+author: "Antonio M Quispe, MD, PhD"
+date: "2023-08-24"
+format: pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Visualización de Datos
+
+Visualizar datos es una habilidad esencial para todo estadístico o investigador toda vez que una imagen dice más que mil palabras!!!
+
+## Objetivos de aprendizaje
+
+Después de finalizar esta práctica desarrollada debería ser capaz de:
+
+-   Conocer los conceptos básicos de visualización de datos
+-   Graficar diferentes tipos de gráficos según su naturaleza y escala\
+-   Comunicar resultados
+
+## Instalamos los paquetes necesarios
+
+Primero, instalamos:
+
+```{r}
+install.packages("mosaicData")
+install.packages("ggstatsplot")
+install.packages("vistime")
+install.packages("gapminder")
+```
+
+Segundo, cargamos:
+
+```{r}
+library(mosaicData)
+library(ggstatsplot)
+library(vistime)
+library(gapminder)
+```
+
+## Gráficos básicos
+
+### Gráfico de dispersión o Scatter plot
+
+Se utiliza un diagrama de dispersión para visualizar la relación entre dos variables. En Quarto, puedes crear un diagrama de dispersión usando la función `plot`. Por ejemplo:
+
+```{r}
+x <- c(1, 2, 3, 4, 5)
+y <- c(2, 4, 6, 8, 10)
+plot(x, y)
+```
+
+### Bar Chart
+
+Se utiliza un gráfico de barras para comparar los valores de diferentes categorías. En Quarto, puede crear un gráfico de barras utilizando la función `barplot`. Por ejemplo:
+
+```{r}
+data <- c(10, 20, 30, 40, 50)
+names <- c("A", "B", "C", "D", "E")
+barplot(data, names.arg=names)
+```
+
+### Line Chart
+
+Se utiliza un line chart o gráfico de líneas para mostrar la tendencia de una variable a lo largo del tiempo. En Quarto, puede crear un gráfico de líneas utilizando la función `plot` con el argumento "type" establecido en "l". Por ejemplo:
+
+```{r}
+x <- c(1, 2, 3, 4, 5)
+y <- c(2, 4, 6, 8, 10)
+plot(x, y, type="l")
+```
+
+### Box plot
+
+Se utiliza un Box plot o diagrama de caja sirve para mostrar la distribución de una variable cuantitativa según una variable categórica de dos o más categorías. En Quarto, puedes crear un diagrama de caja usando la función diagrama de caja `boxplot`. Por ejemplo:
+
+```{r}
+data <- c(1, 2, 3, 4, 5)
+boxplot(data)
+```
+
+### Heat map
+
+Un heat map o mapa de calor se utiliza para visualizar la intensidad de una variable en un espacio bidimensional. En Quarto, puedes crear un mapa de calor usando la función `heatmap`. Por ejemplo:
+
+```{r}
+data <- matrix(c(1, 2, 3, 4, 5, 6, 7, 8, 9), nrow=3, ncol=3)
+heatmap(data)
+```
+
+## Gráficos avanzados
+
+### Graficando variables categóricas
+
+```{r}
+# Cargamos la data
+require(ggplot2)
+require(mosaicData)
+data(Marriage, package = "mosaicData")
+
+# Distribución de proporción de casados por raza
+ggplot(Marriage, aes(x = race)) + 
+  geom_bar()
+```
+
+Ahora corregimos el gráfico para:
+
+-   Ordenar las barras de mayor a menor
+-   Etiquetar los porcentajes en cada barra
+-   Etiquetar los ejes X e Y
+
+```{r}
+# Cargamos los paquetes que vamos a utilizar
+require(dplyr)
+require(scales)
+
+# Calculamos y guardamos los porcentajes
+plotdata <- Marriage %>%
+  count(race) %>%
+  mutate(pct = n / sum(n),
+         pctlabel = paste0(round(pct*100), "%"))
+
+# Graficamos los porcentajes en orden descendente con las etiquetas de los porcentajes
+grafico_barras <- ggplot(plotdata, 
+       aes(x = reorder(race, -pct), y = pct)) + 
+  geom_bar(stat="identity", fill="blue", color="black") +
+  geom_text(aes(label = pctlabel), vjust=-0.25) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Race", 
+       y = "Percent", 
+       title  = "Participants by race")
+grafico_barras
+```
+
+Dado que las etiquetas son muy largas, lo mejor es graficarlo horizontalmente
+
+```{r}
+grafico_barras_horizontales <- ggplot(plotdata, 
+       aes(x = reorder(race, pct), y = pct)) + 
+  geom_bar(stat="identity", fill="blue", color="black") +
+  geom_text(aes(label = pctlabel), hjust=-.05) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Raza", 
+       y = "Porcentaje", 
+       title  = "Participantes según raza") +
+  coord_flip()
+grafico_barras_horizontales
+```
+
+## Graficamos variables cuantitativas
+
+### Histogramas con estadísticos
+
+```{r}
+set.seed(123)
+require(ggstatsplot)
+
+# H0: u=12
+gghistostats(
+  data       = ggplot2::msleep,
+  x          = awake,
+  title      = "Amount of time spent awake",
+  test.value = 12,
+  binwidth   = 1
+)
+```
+
+### Boxplot con estadísticos
+
+```{r}
+## loading the needed libraries
+set.seed(123)
+library(ggplot2)
+
+## using `{ggstatsplot}` to get expression with statistical results
+stats_results <- ggbetweenstats(morley, Expt, Speed) %>% extract_subtitle()
+
+## creating a custom plot of our choosing
+ggplot(morley, aes(x = as.factor(Expt), y = Speed)) +
+  geom_boxplot() +
+  labs(
+    title = "Michelson-Morley experiments",
+    subtitle = stats_results,
+    x = "Speed of light",
+    y = "Experiment number"
+  )
+```
+
+### Violin plots con dots y box plots, más estadísticos entre categorías
+
+```{r}
+# Cargamos el paquete
+require(ggstatsplot)
+
+#Gráfico de Violin con pruebas estadísticas
+set.seed(123)
+
+ggbetweenstats(
+  data  = iris,
+  x     = Species,
+  y     = Sepal.Length,
+  title = "Distribution of sepal length across Iris species"
+)
+```
+
+### Violin plots con dots y box plots, más estadísticos dentro de las categorías
+
+```{r}
+set.seed(123)
+library(WRS2) ## for data
+library(afex) ## to run ANOVA
+
+ggwithinstats(
+  data    = WineTasting,
+  x       = Wine,
+  y       = Taste,
+  title   = "Wine tasting"
+)
+```
+
+### Violin plots con dots y box plots, más estadísticos pareados
+
+```{r}
+set.seed(123)
+
+grouped_ggwithinstats(
+  data            = dplyr::filter(bugs_long, region %in% c("Europe", "North America"), condition %in% c("LDLF", "LDHF")),
+  x               = condition,
+  y               = desire,
+  type            = "np",
+  xlab            = "Condition",
+  ylab            = "Desire to kill an artrhopod",
+  grouping.var    = region
+)
+```
+
+### Dot plots para comparar un estimado entre múltiple categorías
+
+```{r}
+library(gapminder)
+set.seed(123)
+
+ggdotplotstats(
+  data       = dplyr::filter(gapminder::gapminder, continent == "Americas"),
+  y          = country,
+  x          = lifeExp,
+  test.value = 55,
+  type       = "robust",
+  title      = "Distribution of life expectancy in the Americas continent",
+  xlab       = "Life expectancy"
+)
+```
+
+### Gráfico de correlación entre dos variables cuantitativos
+
+```{r}
+ggscatterstats(
+  data  = ggplot2::msleep,
+  x     = sleep_rem,
+  y     = awake,
+  xlab  = "REM sleep (in hours)",
+  ylab  = "Amount of time spent awake (in hours)",
+  title = "Understanding mammalian sleep"
+)
+```
+
+### Correlograma
+
+```{r}
+set.seed(123)
+
+## as a default this function outputs a correlation matrix plot
+ggcorrmat(
+  data     = ggplot2::msleep,
+  colors   = c("#B2182B", "white", "#4D4D4D"),
+  title    = "Correlalogram for mammals sleep dataset",
+  subtitle = "sleep units: hours; weight units: kilograms"
+)
+```
+
+### Gráficos de Pie según una variable categórica
+
+```{r}
+set.seed(123)
+
+grouped_ggpiestats(
+  data         = mtcars,
+  x            = cyl,
+  grouping.var = am,
+  label.repel  = TRUE,
+  package      = "ggsci",
+  palette      = "default_ucscgb"
+)
+```
+
+### Gráficos de barras según más de dos categorías
+
+```{r}
+set.seed(123)
+library(ggplot2)
+
+ggbarstats(
+  data             = movies_long,
+  x                = mpaa,
+  y                = genre,
+  title            = "MPAA Ratings by Genre",
+  xlab             = "movie genre",
+  legend.title     = "MPAA rating",
+  ggplot.component = list(ggplot2::scale_x_discrete(guide = ggplot2::guide_axis(n.dodge = 2))),
+  palette          = "Set2"
+)
+```
+
+### Gráficos de magnitudes de asociación de un análisis de regresión lineal
+
+```{r}
+set.seed(123)
+
+## model
+mod <- stats::lm(formula = mpg ~ am * cyl, data = mtcars)
+
+ggcoefstats(mod)
+```
+
+## Gráficos controlando las paletas de colores
+
+Cargamos la base de datos IRIS de 3 tipos diferentes de longitud de pétalos y sépalos de iris (Setosa, Versicolor y Virginica).
+
+```{r}
+head(iris, 6)
+```
+
+### Box plot clásico
+
+```{r}
+library("ggplot2")
+bp <- ggplot(iris, aes(Species, Sepal.Length)) + 
+  geom_boxplot(aes(fill = Species)) +
+  theme_minimal() +
+  theme(legend.position = "top")
+bp
+```
+
+### Scatter plot clásico
+
+```{r}
+sp <- ggplot(iris, aes(Sepal.Length, Sepal.Width)) + 
+  geom_point(aes(color = Species)) +
+  theme_minimal()+
+  theme(legend.position = "top")
+sp
+```
+
+### Gráficos con escalas de grises
+
+### Box plot
+
+```{r}
+bp + scale_fill_grey(start = 0.8, end = 0.2) 
+```
+
+# Scatter plot
+
+```{r}
+sp + scale_color_grey(start = 0.8, end = 0.2) 
+```
+
+### Gráficos con la paleta de colores viridis
+
+#### Paleta viridis
+
+```{r}
+#install.packages("viridis")  # Install
+library("viridis")           # Load
+```
+
+#### Bar plot con la paleta viridis
+
+```{r}
+barplot(1:10, col = viridis(10))
+```
+
+#### Boxplot con la paleta viridis
+
+```{r}
+library(ggplot2)
+# Gradient color
+ggplot(iris, aes(Sepal.Length, Sepal.Width))+
+  geom_point(aes(color = Sepal.Length)) +
+  scale_color_viridis(option = "D")+
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Scatter con lineas de regresión y paleta viridis
+
+```{r}
+ggplot(iris, aes(Sepal.Length, Sepal.Width))+
+  geom_point(aes(color = Species)) +
+  geom_smooth(aes(color = Species, fill = Species), method = "lm") + 
+  scale_color_viridis(discrete = TRUE, option = "D")+
+  scale_fill_viridis(discrete = TRUE) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Gráficos con la paleta de colores Brewer
+
+#### Paleta Brewer
+
+```{r}
+#install.packages("RColorBrewer")  # Install
+library(RColorBrewer) # load
+display.brewer.all(colorblindFriendly = TRUE)
+```
+
+#### Creando nuevas con escalas espcificas
+
+```{r}
+display.brewer.pal(n = 8, name = 'Dark2')
+```
+
+#### Boxplot con la paleta Brewer
+
+```{r}
+bp + scale_fill_brewer(palette = "Dark2")
+```
+
+#### Scatter plot con la paleta Brewer
+
+```{r}
+sp + scale_color_brewer(palette = "Dark2")
+
+```
+
+### Gráficos con la paleta de colores para manuscritos científicos
+
+#### Paleta Brevwer
+
+```{r}
+#install.packages("ggsci")  # Install
+library("ggsci") # load
+```
+
+#### Bar plot con la paleta JCO
+
+```{r}
+ggplot(iris, aes(Species, Sepal.Length)) +
+  geom_boxplot(aes(fill = Species)) +
+  scale_fill_jco()+
+  theme_classic() +
+  theme(legend.position = "top")
+```
+
+#### Bar plot con la paleta tron en fondo oscuro
+
+```{r}
+ggplot(iris, aes(Sepal.Length, Sepal.Width)) +
+  geom_point(aes(color = Species)) +
+  geom_smooth(aes(color = Species, fill = Species)) + 
+  scale_color_tron()+
+  scale_fill_tron()+
+  theme_dark() +
+  theme(
+    legend.position = "top",
+    panel.background = element_rect(fill = "#2D2D2D"),
+    legend.key = element_rect(fill = "#2D2D2D")
+    )
+```
+
+### Gráficos con la paleta de colores Wes Anderson
+
+#### Paleta Wes Anderson
+
+```{r}
+#install.packages("wesanderson")  # Install
+library("wesanderson") # load
+names(wes_palettes)
+```
+
+#### Bar plot con la paleta GrandBudapest1
+
+```{r}
+bp + scale_fill_manual(values = wes_palette("GrandBudapest1", n = 3))
+```
+
+#### Heat map con la paleta Zissou1
+
+```{r}
+pal <- wes_palette("Zissou1", 100, type = "continuous")
+ggplot(heatmap, aes(x = X2, y = X1, fill = value)) +
+  geom_tile() + 
+  scale_fill_gradientn(colours = pal) + 
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) + 
+  coord_equal() 
+```
+
+### Bar plot del PBI Peru
+
+Carga de la data creando una tabla con los valores que vamos a utilizar tomados del INEI
+
+```{r}
+Input = ("Year	Mes	Mes_id	Var_PBI	Lower	Upper	Crecimiento
+2022	2022-01-01	1	2.98	0.00	2.98	Positivo
+2022	2022-02-01	2	4.91	0.00	4.91	Positivo
+2022	2022-03-01	3	3.87	0.00	3.87	Positivo
+2022	2022-04-01	4	4.02	0.00	4.02	Positivo
+2022	2022-05-01	5	2.58	0.00	2.58	Positivo
+2022	2022-06-01	6	3.41	0.00	3.41	Positivo
+2022	2022-07-01	7	1.97	0.00	1.97	Positivo
+2022	2022-08-01	8	2.10	0.00	2.10	Positivo
+2022	2022-09-01	9	2.16	0.00	2.16	Positivo
+2022	2022-10-01	10	2.32	0.00	2.32	Positivo
+2022	2022-11-01	11	2.00	0.00	2.00	Positivo
+2022	2022-12-01	12	1.00	0.00	1.00	Positivo
+2023	2023-01-01	13	-0.87	-0.87	0	Negativo
+2023	2023-02-01	14	-0.58	-0.58	0	Negativo
+2023	2023-03-01	15	0.31	0.00	0.31	Positivo
+2023	2023-04-01	16	0.37	0.00	0.37	Positivo
+2023	2023-05-01	17	-1.30	-1.30	0	Negativo
+2023	2023-06-01	18	-0.54	-0.54	0	Negativo
+2023	2023-07-01	19	-1.20	-1.20	0	Negativo
+2023	2023-08-01	20	-0.52	-0.52	0	Negativo
+2023	2023-09-01	21	-1.29	-1.29	0	Negativo")
+```
+
+###Creamos un data frame en base a la tabla Input
+
+```{r}
+pbi = read.table(textConnection(Input),header=TRUE)
+names(pbi)
+```
+
+```{r}
+str(pbi)
+```
+
+```{r}
+require(ggplot2)
+require(dplyr)
+require(lubridate)
+pbi <- pbi %>% 
+  mutate(Mes = as.Date(Mes))
+```
+
+```{r}
+require(ggplot2)
+require(dplyr)
+require(lubridate)
+require(tibble)
+require(scales)
+pbi_bar <- ggplot(data = pbi, aes(x=Mes, y=Var_PBI, group = Year, fill=Crecimiento)) + 
+  geom_bar(stat = "identity")+
+  facet_grid(. ~ Year, scale = "free_x") +
+  scale_x_date(labels = date_format("%m"), expand = c(0, 0)) +
+  geom_text(aes(label = Var_PBI, color="white", vjust = -sign(Var_PBI))) +
+  theme_dark() +
+  theme(
+    legend.position = "",
+    panel.background = element_rect(fill = "#2D2D2D"),
+    legend.key = element_rect(fill = "#2D2D2D")) + 
+  ggtitle("Evolución Mensual del PBI: 2022-2023",
+          subtitle = "Elaborado por @drantonioquispe con datos del INEI") +
+  xlab("Mes") + ylab("Variación % del PBI") 
+
+pbi_bar
+```
+
+#### Timeline
+
+Cargamos los paquetes que vamos a necesitar
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(scales)
+library(lubridate)
+library(vistime)
+```
+
+## Including Directores
+
+Creamos la base de datos de directores de Cenares
+
+```{r pressure, echo=FALSE}
+directors <- data.frame(
+  cenares = c("Vasquez", "Espino", "Ramírez", "Gálvez", "Ramírez", "Guillén", "Castillo"),
+  ministro = c("Rosa Gutiérrez", "César Vásquez", "César Vásquez", "César Vásquez", "César Vásquez", "César Vásquez", "César Vásquez"),
+  start_date = as.Date(c("2023-01-05", "2023-06-01", "2023-07-08", "2023-07-21", "2023-09-06", "2024-01-24", "2024-05-18")),
+  end_date = as.Date(c("2023-05-31", "2023-07-07", "2023-07-20", "2023-09-05", "2024-01-23", "2024-05-17", "2024-05-28")),
+stringsAsFactors = FALSE
+  )
+```
+
+Usamos vistime para visualizar la linea de tiempo
+
+```{r}
+vistime(directors, col.event = "cenares", col.group = "ministro", 
+                     col.start = "start_date", col.end = "end_date")
+```

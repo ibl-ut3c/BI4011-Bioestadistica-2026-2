@@ -1,0 +1,682 @@
+---
+title: "Programacion con IA"
+author: "Antonio M Quispe"
+  format: html
+  word_document: default
+editor: visual
+---
+
+# Manejo de Datos
+
+## Configurando el directorio de trabajo
+
+### ¿Cual es nuestro directorio actual?
+
+```{r}
+getwd()
+```
+
+### Establecer un nuevo directorio de trabajo.
+
+```{r}
+setwd("/Users/aquispe/Documents/UTEC/Estadistica/2024-2/Practicas/Practica 6")
+```
+
+### Codigo para cargar la base de datos
+
+```{r}
+library(readxl)
+Data <- read_excel("GrandaLIMPIO.xlsx")
+View(Data)
+```
+
+# Codigo para empezar nuestro análisis descritivo y producir la tabla 1
+
+## Tecnica
+
+0=Lichtenstein 1=Nyhus
+
+### Convertimos tecnica en un factor porque recuerden en la base está como un número
+
+```{r}
+Data$tecnica <- factor(Data$tecnica,labels=c("Lichtenstein","Nyhus"))
+```
+
+### Frecuencias absolutas de tecnica
+
+```{r}
+tabla_tecnica_absoluta <- table(Data$tecnica)
+print(tabla_tecnica_absoluta)
+```
+
+### Frecuencias relativas de tecnica
+
+```{r}
+tabla_tecnica_relativa <- prop.table(tabla_tecnica_absoluta)
+print(tabla_tecnica_relativa)
+```
+
+## Sexo
+
+# Frecuencia absoluta y relativa de sexo
+
+```{r}
+tabla_sexo_absoluta <- table(Data$sexo)
+print(tabla_sexo_absoluta)
+tabla_sexo_relativa <- prop.table(tabla_sexo_absoluta)
+print(tabla_sexo_relativa)
+```
+
+## Tecnica por sexo
+
+# Frecuencia absoluta y relativa de sexo según tecnica
+
+```{r}
+tabla_tecnica_sexo_absoluta <- table(Data$sexo, Data$tecnica)
+print(tabla_tecnica_sexo_absoluta)
+tabla_tecnica_sexo_relativa <- prop.table(tabla_tecnica_sexo_absoluta, margin = 2)
+print(tabla_tecnica_sexo_relativa)
+```
+
+## Edad
+
+### Analisis de normalidad de edad
+
+```{r}
+shapiro.test(Data$edad)
+```
+
+dado que el valor p es menos de 0,05 rechazamos la hipótesis de normalidad y concluimos que edad no tiene una distribución normal.
+
+### Código para crear nuestra propia función de estadísticos de resumen
+
+```{r}
+estadisticas <- function(x) {
+  promedio <- mean(x)
+  desviacion_estandar <- sd(x)
+  mediana <- median(x)
+  rango_intercuartilico <- IQR(x)
+  
+  return(c(Promedio = promedio, 
+           DesviacionEstandar = desviacion_estandar, 
+           Mediana = mediana, 
+           RangoIntercuartilico = rango_intercuartilico))
+}
+```
+
+### codigo para resumir la variable edad
+
+```{r}
+summary(Data$edad)
+median(Data$edad)
+IQR(Data$edad)
+```
+
+### código para calcular la edad según tecnica
+
+```{r}
+estadisticas_edad_tecnica <- aggregate(edad ~ tecnica, data = Data, FUN = estadisticas)
+View(estadisticas_edad_tecnica)
+```
+
+### codigo para crear la variable grupo etario
+
+```{r}
+Data$grupo_etario <- cut(Data$edad, 
+                           breaks = c(-Inf, 39.9, 59.9, Inf),
+                           labels = c("<40 años", "40 a 59.9 años", ">=60 años"),
+                           right = FALSE)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupos etarios
+
+```{r}
+tabla_grupoetario_absoluta <- table(Data$grupo_etario)
+print(tabla_grupoetario_absoluta)
+tabla_grupoetario_relativa <- prop.table(tabla_grupoetario_absoluta, margin = 2)
+print(tabla_grupoetario_relativa)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupos etarios según tecnica
+
+```{r}
+tabla_tecnica_grupoetario_absoluta <- table(Data$grupo_etario, Data$tecnica)
+print(tabla_tecnica_grupoetario_absoluta)
+tabla_tecnica_grupoetario_relativa <- prop.table(tabla_tecnica_grupoetario_absoluta, margin = 2)
+print(tabla_tecnica_grupoetario_relativa)
+```
+
+## Tiempo de enfermedad
+
+### Analisis de normalidad
+
+```{r}
+shapiro.test(Data$t_enf)
+```
+
+dado que el valor p es menos de 0,05 rechazamos la hipótesis de normalidad y concluimos que no tiene una distribución normal.
+
+### codigo para resumir la variable edad
+
+```{r}
+summary(Data$t_enf)
+median(Data$t_enf)
+IQR(Data$t_enf)
+```
+
+### código para calcular la t_enf según tecnica
+
+```{r}
+estadisticas_t_enf_tecnica <- aggregate(t_enf ~ tecnica, data = Data, FUN = estadisticas)
+View(estadisticas_t_enf_tecnica)
+```
+
+### codigo para crear la variable grupo etario
+
+```{r}
+Data$grupo_t_enf <- cut(Data$t_enf, 
+                           breaks = c(-Inf, 23.9, 47.9, Inf),
+                           labels = c("<24 meses", "24 a 47.9 meses", ">=48 meses"),
+                           right = FALSE)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupos etarios
+
+```{r}
+tabla_grupo_t_enf_absoluta <- table(Data$grupo_t_enf)
+print(tabla_grupo_t_enf_absoluta)
+tabla_grupo_t_enf_relativa <- prop.table(tabla_grupo_t_enf_absoluta)
+print(tabla_grupo_t_enf_relativa)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupo_t_enf según tecnica
+
+```{r}
+tabla_tecnica_grupo_t_enf_absoluta <- table(Data$grupo_t_enf, Data$tecnica)
+print(tabla_tecnica_grupo_t_enf_absoluta)
+tabla_tecnica_grupo_t_enf_relativa <- prop.table(tabla_tecnica_grupo_t_enf_absoluta, margin = 2)
+print(tabla_tecnica_grupo_t_enf_relativa)
+```
+
+## Tiempo de hospitalización
+
+### Analisis de normalidad
+
+```{r}
+shapiro.test(Data$t_hosp)
+```
+
+dado que el valor p es menos de 0,05 rechazamos la hipótesis de normalidad y concluimos que no tiene una distribución normal.
+
+### codigo para resumir la variable t_hosp
+
+```{r}
+summary(Data$t_hosp)
+median(Data$t_hosp)
+IQR(Data$t_hosp)
+```
+
+### código para calcular la t_hosp según tecnica
+
+```{r}
+estadisticas_t_hosp_tecnica <- aggregate(t_hosp ~ tecnica, data = Data, FUN = estadisticas)
+View(estadisticas_t_hosp_tecnica)
+```
+
+### codigo para crear la variable grupo_t_hosp
+
+```{r}
+Data$grupo_t_hosp <- cut(Data$t_hosp, 
+                           breaks = c(-Inf, 3, 5, 7, Inf),
+                           labels = c("<3 días", "3 a 4  días", "5 a 6  días", ">=7 meses"),
+                           right = FALSE)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupos etarios
+
+```{r}
+tabla_grupo_t_hosp_absoluta <- table(Data$grupo_t_hosp)
+print(tabla_grupo_t_hosp_absoluta)
+tabla_grupo_t_hosp_relativa <- prop.table(tabla_grupo_t_hosp_absoluta)
+print(tabla_grupo_t_hosp_relativa)
+```
+
+### codigo para tabular la frecuencia absoluta y relativa de los grupo_t_hosp según tecnica
+
+```{r}
+tabla_tecnica_grupo_t_hosp_absoluta <- table(Data$grupo_t_hosp, Data$tecnica)
+print(tabla_tecnica_grupo_t_hosp_absoluta)
+tabla_tecnica_grupo_t_hosp_relativa <- prop.table(tabla_tecnica_grupo_t_hosp_absoluta, margin = 2)
+print(tabla_tecnica_grupo_t_hosp_relativa)
+```
+
+# Codigo para empezar nuestro análisis bivariado y agregarle asteriscos a nuestra tabla 1
+
+## Codigo para comparar proporciones de dos muestras independientes
+
+```{r}
+# Sexo vs. Tecnica
+chisq.test(Data$sexo,Data$tecnica) 
+```
+
+como el valor p no es menor de 0.005 no se rechaza la hipotesis nula conclusion no encontramos diferencia entre las proporciones de varones
+
+## Código para comparación de promedios
+
+```{r}
+# Edad vs Técnica
+t.test(Data$edad ~ Data$tecnica) 
+```
+
+## Comparación de medianas de dos muestras independientes
+
+```{r}
+# Edad vs Técnica 
+wilcox.test(Data$edad ~ Data$tecnica) 
+```
+
+Resultado: como el valor p no es menor de 0.005 no se rechaza la hipotesis nula de igualdad de medianas Conclusión: No encontramos diferencias entre las medianas de edad segun tecnica
+
+# Codigo para empezar nuestro análisis multivariado y nuestra tabla 3
+
+## Cargar paquetes
+
+```{r}
+# Llamamos a los paquetes
+library(readr) #leer archivos
+library(dplyr) #tratamiento de datos
+library(Amelia) #analisis de casos perdidos
+library(VIM) #visualización de valores perdidos 
+library(mlogit) # regresión logistica
+library(ggplot2) #graficos
+library(gridExtra)#validacion de condiciones para la regresion
+library(AICcmodavg) # Método Forward 
+library(PerformanceAnalytics) #Analisis de correlación
+library(corrplot) #exploración visual en la matriz de correlación
+library(aod) #wald test
+library(car) #multicolinealidad
+```
+
+## Manejo de datos
+
+### Convertimos tecnica en un factor porque recuerden en la base está como un número
+
+```{r}
+Data$r_complic <- factor(Data$r_complic,labels=c("Negativo","Positivo"))
+Data$c_temp <- factor(Data$c_temp,labels=c("Negativo","Positivo"))
+Data$c_tardia <- factor(Data$c_tardia,labels=c("Negativo","Positivo"))
+```
+
+### Seleccionamos las variables con las que vamos a trabajar
+
+```{r}
+Data_Final <- Data %>% select(r_complic, c_temp, c_tardia, t_hosp, t_qx, tecnica)
+```
+
+### Convertimos nuestras variables a número
+
+```{r}
+# Convertimos las variables en númericas
+Data_Final$r_complic  = as.numeric(Data_Final$r_complic)
+Data_Final$c_temp  = as.numeric(Data_Final$c_temp)
+Data_Final$c_tardia  = as.numeric(Data_Final$c_tardia)
+Data_Final$t_hosp  = as.numeric(Data_Final$t_hosp)
+Data_Final$t_qx  = as.numeric(Data_Final$t_qx)
+Data_Final$tecnica  = as.numeric(Data_Final$tecnica)
+```
+
+## analisis de correlación para sospechar los predictores de nuestro desenlace de interés
+
+```{r}
+correlations <- cor(Data_Final[,1:6])
+corrplot(correlations, method = "circle")
+```
+
+### Convertimos tecnica en un factor porque recuerden en la base está como un número
+
+```{r}
+Data_Final$tecnica <- factor(Data_Final$tecnica,labels=c("Lichtenstein","Nyhus"))
+Data_Final$r_complic <- factor(Data_Final$r_complic,labels=c("Negativo","Positivo"))
+Data_Final$c_temp <- factor(Data_Final$c_temp,labels=c("Negativo","Positivo"))
+Data_Final$c_tardia <- factor(Data_Final$c_tardia,labels=c("Negativo","Positivo"))
+```
+
+# Análisis de regresión logística con toda la base
+
+## Desenlace: Complicaciones en general (r_comp)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(r_complic ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('complicaciones')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(r_complic ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(r_complic ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(r_complic ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```
+
+## Desenlace: Complicaciones tempranas (c_temp)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(c_temp ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('comp_temp')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(c_temp ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(c_temp ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(c_temp ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```
+
+## Desenlace: Complicaciones tempranas (c_tardia)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(c_tardia ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('comp_tard')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(c_tardia ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(c_tardia ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(c_tardia ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```
+
+# Análisis de regresión logística solo los pacientes operados con Lichtenstein
+
+## código para crear un subset de la base de datos solo con lichtentein
+
+```{r}
+Data_L <- subset(Data_Final, tecnica == "Lichtenstein")
+```
+
+## Desenlace: Complicaciones en general (r_comp)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(r_complic ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('complicaciones')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(r_complic ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(r_complic ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(r_complic ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```
+
+## Desenlace: Complicaciones tempranas (c_temp)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(c_temp ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('comp_temp')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(c_temp ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(c_temp ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(c_temp ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```
+
+## Desenlace: Complicaciones tempranas (c_tardia)
+
+### Modelo nulo
+
+Corremos un modelo nulo
+
+```{r}
+modelo_nulo = glm(c_tardia ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('comp_tard')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden
+
+```{r}
+modelo_1.1 <- glm(c_tardia ~ t_qx, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden
+
+```{r}
+modelo_1.2 <- glm(c_tardia ~ t_hosp, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+### Modelo de segundo orden
+
+```{r}
+modelo_2.1 <- glm(c_tardia ~ t_qx + t_hosp, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+
+exp(cbind(coef(modelo_2.1), confint(modelo_2.1)))
+```

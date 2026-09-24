@@ -1,0 +1,564 @@
+---
+title: "Capítulo 3: Análisis Exploratorio de Datos"
+author: "Antonio M. Quispe MD PhD"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+## Objetivos de aprendizaje
+
+Después de finalizar esta práctica desarrollada deberías ser capaz de:
+
+-   Identificar y calcular las medidas de frecuencia absoluta y relativa.
+-   Identificar y calcular las medidas de tendencia central y de dispersión.
+-   Realizar pruebas de normalidad mediante gráficos y métodos estadísticos.
+-   Identificar y calcular las medidas de asociación en diseños de estudio transversales y de cohortes.
+-   Comprender los diferentes métodos de correlación.
+
+## Preparamos nuestro entorno de trabajo
+
+### Establezca el directorio de trabajo
+
+Para establecer el directorio de trabajo usamos la función `setwd()`. Dentro del paréntesis se escribe la nueva dirección, la cual debe estar entre comillas. Considera que la barra oblicua o slash “/” debe tener la parte superior orientada hacia la derecha, de lo contrario la función no leerá la dirección que pusiste entre paréntesis.
+
+```{r}
+getwd()
+```
+
+```{r}
+# setwd(".")
+```
+
+Para corrobar el directorio que hemos establecido, utilizamos la función `getwd()`. Esta función simple no acepta argumentos entre los paréntesis, así que ingrésala y ejecútala sin añadir ningún valor o argumento.
+
+### Instalamos los paquetes que vamos a utilizar
+
+En esta práctica utilizaremos los siguientes paquetes:
+
+```{r warning=FALSE}
+install.packages ("magrittr")
+install.packages("plyr")
+install.packages("dplyr")
+install.packages("grid")
+install.packages("gridExtra")
+install.packages("carData")
+install.packages("car")
+install.packages("ggplot2")
+install.packages("modeest")
+install.packages("plotrix")
+install.packages("nortest")
+install.packages("colorspace")
+```
+
+Una vez instalados los cargamos:
+
+```{r}
+library(magrittr)
+library(plyr)
+library(grid)
+library(gridExtra) 
+library(carData) #qqplot
+# library(car) #qqplot
+library(dplyr)
+library(ggplot2)
+# library(modeest)
+library(plotrix)
+library(nortest)
+library(colorspace)
+```
+
+## Estudio de caso: base de datos mtcars
+
+Esta base de datos la utilizaremos para calcular las medidas de frencuencia, tendencia central y dispersión, así como para realizar un análisis de normalidad gráfico y estadístico.
+
+Para esta sección de la práctica usaremos dos variables cuantitativas de la base de datos **mtcars**.
+
+### Cargamos la data
+
+Cargamos la data que vamos a usar en este ejercicio.
+
+```{r}
+data(mtcars)
+```
+
+### Inspeccionamos la data
+
+Reconozcamos la estructura y características de los datos.
+
+```{r}
+str(mtcars)
+head(mtcars)
+```
+
+### Resumen estadístico de los datos
+
+Genere estadísticas resumidas usando `summary()` para obtener una descripción general rápida de las variables numéricas.
+
+```{r}
+summary(mtcars)
+```
+
+### Evaluamos los tipos de datos
+
+Verifique los tipos de datos de sus variables usando `class()` y `sapply()`.
+
+```{r}
+sapply(mtcars, class)
+```
+
+### Analizamos si tenemos datos perdidos
+
+Identifique los datos perdidos usando is.na() y calcule el porcentaje de datos faltantes.
+
+```{r}
+# Evalue datos faltantes
+sum(is.na(mtcars))
+
+# Porcentaje de datos perdidos
+mean(is.na(mtcars)) * 100
+```
+
+## Medidas de frecuencia
+
+**Frecuencia absoluta**
+
+La frecuencia absoluta nos da información acerca de la cantidad de veces que se repite un suceso al realizar un número determinado de experimentos aleatorios. Utilizamos la función `table()`para conocer una frecuencia absoluta.
+
+Para esta sección de la práctica usaremos dos variables cuantitativas de la base de datos **cars**
+
+```{r}
+#Número de veces que se repite un valor en la base de datos
+table(cars) 
+
+#Para saber si hay valores perdidos
+table(is.na(cars))
+```
+
+Si hubieran valores perdidos serían mostrados como TRUE. En este caso no hay valores perdidos.
+
+**Frecuencia Relativa**
+
+Es el cociente de la frecuencia absoluta de algún valor de la población/muestra entre el total de valores que componen la población/muestra. Utilizamos la función `prob.table()` para crear tablas de frecuencias relativas a partir de tablas de frecuencia absoluta.
+
+```{r}
+ #Nos muestra la proporción de cada frecuencia absoluta
+prop.table(cars)
+```
+
+## Medidas de tendencia central
+
+**Media**
+
+Conocida también como promedio, es el valor que se obtiene al dividir la suma de un conglomerado de números entre la cantidad de ellos. Utilizamos la función `mean()`, dentro del paréntesis primero se coloca el nombre de la base de datos y se escribe el signo de dólar `$`, este elemento permite extraer un solo elemento a la vez, en este caso se extrae la columna "dist" para obtener su media.
+
+```{r}
+mean(cars$dist) 
+```
+
+La media o el promedio aritmético de los datos es 42.98.
+
+**Mediana**
+
+Es el valor que se encuentra en el lugar central de todos los datos de un estudio cuando estos están ordenados de menor a mayor.
+
+```{r}
+median(cars$dist) 
+```
+
+El valor medio de la distribución de datos de la variable "dist" es 36.
+
+**Moda**
+
+Es el valor del conjunto de datos que tiene una mayor frecuencia absoluta, es decir, la moda es el valor que más se repite.
+
+```{r}
+#Moda de la variable "dist"
+mode <- function(x) {
+   return(as.numeric(names(which.max(table(x)))))
+}
+mode(cars$dist) 
+```
+
+La moda, el valor más común de los datos de la variable, es 26.
+
+## Medidas de dispersión
+
+**Desviación estándar**
+
+Es la raíz cuadrada del promedio de las distancias al cuadrado que van desde las observaciones a la media. Se calcula con la función `sd`.
+
+```{r}
+sd(cars$dist) 
+```
+
+La desviación estándar es de 25.76938.
+
+**Rango intercuartílico**
+
+Es la diferencia entre el primer y el tercer cuartil. Se calcula con la función `IQR`.
+
+```{r}
+IQR(cars$dist)
+```
+
+**Varianza**
+
+Es el promedio de las distancias al cuadrado que van desde las observaciones a la media. Se calcula con la función `var`.
+
+```{r}
+var(cars$dist) 
+```
+
+La varianza o la medida de dispersión que muestra la variabilidad de los datos respecto a su media es 664.0608.
+
+**Rango**
+
+Es la diferencia existente entre el valor mayor y el menor de la distribución.
+
+```{r}
+#Si deseamos saber solo el valor mínimo
+min(cars$dist)
+
+#Si deseamos saber solo el valor máximo
+max(cars$dist)
+
+#Si deseamos saber el valor minimo y máximo 
+#de una variable, el rango nos lo muestra
+range(cars$dist) 
+```
+
+El valor minimo es 2 y el máximo es 120.
+
+**Error Estandar**
+
+Es la desviación estándar de la distribución muestral de un estadístico muestral.
+
+```{r}
+std <- function(x) sd(x)/sqrt(length(x))
+std(cars$dist) 
+```
+
+El error estandar o la desviación estandar de la distribución de los datos es 3.64434.
+
+**Quantiles**
+
+Son medidas de localización cuya función es informar del valor de la variable que ocupará la posición (en tanto por cien) que nos interese respecto de todo el conjunto de variables.
+
+```{r}
+quantile(cars$dist)
+```
+
+En la variable "dist", el caso equivalente al 0% es la distancia de frenado de 2 pies, el caso equivalente al 25% es cuando la distancia de frenado es de 26 pies y asi sucesivamente.
+
+**Percentil**
+
+Dividen la sucesión de datos ordenados en cien partes porcentualmente iguales. Utilizamos `quantile` para este propósito:
+
+```{r}
+quantile(cars$dist, c(.60))
+```
+
+El caso equivalente al 60% es 46.
+
+### Resumen estadístico
+
+Cada vez que trabaja con un conjunto de datos, necesita conocer la descripción general de lo que está tratando. La función `summary`, por ejemplo, le proporcionará un resumen estadístico para todas las variables numéricas de su conjunto de datos:
+
+```{r}
+summary(cars)
+```
+
+Con el resultado de esta función podemos ver los valores mínimos, medios y máximos de la velocidad y distancia de los automóviles, así como el primer y tercer cuartil de las dos variables.
+
+## Análisis de normalidad
+
+Es importante para los datos continuos porque permite decidir las medidas de tendencia central y los métodos estadísticos para el análisis de datos.
+
+### Análisis gráfico de normalidad
+
+**Histograma**
+
+Es la representación gráfica en forma de barras que simboliza la distribución de un conjunto de datos. Sirven para obtener una "primera vista" general o panorama de la distribución de la población o de la muestra respecto a una característica.
+
+```{r}
+hist(cars$dist) 
+```
+
+```{r}
+#Mejorando el gráfico de histograma
+
+hist(cars$dist, main = "Histograma de distancias de frenado" #para cambiar el título del grafico
+     ,xlab = "Distancia de frenado (pies)" #para renombrar el eje X
+     ,ylab = "Frecuencia" #para renombrar el eje Y
+     ,col = "cadetblue3" #para darle color al grafico
+     ,border = "black") #para darle color a los bordes
+```
+
+**Densidad**
+
+Visualiza la distribución de datos en un intervalo o período de tiempo continuo. Este gráfico es una variación de un Histograma que usa el suavizado de cerner para trazar valores, permitiendo distribuciones más suaves.
+
+```{r}
+density(cars$dist)
+densidad_distancia <- density(cars$dist) #Primero se calcula la densidad de la variable
+plot(densidad_distancia, #Luego se grafica ese nuevo valor calculado
+     main = "Densidad de la distancia de frenado",
+     xlab = "Distancia de frenado (pies)",
+     ylab = "Densidad")
+```
+
+```{r}
+#mejorando el gráfico de densidad con ggplot
+ggplot(cars,aes(x=dist))+  
+  geom_density(fill="#69b3a2", color="#e9ecef" #especificación de color hexadecimal
+               , alpha=0.8) +
+  labs (y= "Densidad", x="Distancia de frenado (pies)") +
+  ggtitle("Densidad de la distancia de frenado")  +  
+  geom_vline(aes(xintercept=mean(dist)), #Agregamos la línea media
+   color="blue", linetype="dashed", linewidth=1) + 
+  theme(plot.title = element_text(hjust = 0.5)) #centrar título
+```
+
+**Histograma y densidad en un solo gráfico**
+
+```{r message=FALSE, warning=FALSE}
+#le agregamos un relleno semitransparente con alpha
+ggplot(cars, aes(x = dist)) + 
+  geom_histogram(aes(y = ..density..),
+                 colour = 1, fill = "white") +
+    geom_density(alpha=.2, fill="#FF6666") + 
+  labs (y= "Densidad", x="Distancia de frenado(pies)")
+```
+
+**QQplot**
+
+Representa un diagrama de puntos que dibuja las funciones de distribución acumuladas. En caso de provengan de una misma distribución, los puntos aparecen alineados.
+
+```{r}
+qqPlot(cars$dist)
+```
+
+**Box plot o diagrama de cajas**
+
+```{r}
+boxplot(cars$dist, col= "red", main="Diagrama de caja de distancia de frenado") 
+```
+
+### Análisis estadístico de normalidad
+
+**Prueba de Shapiro-Wilks**
+
+El test de Shapiro-Wilks es aplicable solo para variables con menos de 50 observaciones. Esta prueba plantea la hipótesis nula de que una muestra proviene de una distribución normal. Si el p-value es menor a 0.05 rechaza la hipotesis nula y se concluye que la variable no tiene una distribución paramétrica.
+
+```{r}
+shapiro.test(cars$dist) 
+
+```
+
+En este caso el p-value es de 0.0391, en consecuencia, la distancia de frenado no tiene una distribución paramétrica.
+
+**Prueba de Shapiro-Francia**
+
+El test de Shapiro-Francia plantea la hipótesis nula de que una muestra proviene de una distribución normal.
+
+Si el p-value es menor a 0.05 rechaza la hipotesis nula y se concluye que la variable no tiene una distribución normal o paramétrica.
+
+```{r}
+sf.test(cars$dist) 
+```
+
+El p-value es de 0.04179, en consecuencia, la distancia de frenado no tiene una distribución normal.
+
+**Prueba de Kolmogorov-Smirnov con el ajuste de Lilliefors**
+
+La prueba de Kolgomorov-Smirnov asume conocida la media y varianza poblacional, lo que, en la mayoría de los casos, es imposible conocer. Para solucionar este problema se desarrolló una modificación conocida como test Lilliefors. El test Lilliefors asume que la media y y varianza son desconocidas, estando especialmente desarrollado para testear la normalidad.
+
+```{r warning=FALSE}
+lillie.test(cars$dist)
+```
+
+El p-value es de 0.04335, es decir, no tiene una distribución paramétrica.
+
+## Visualización básica de Datos
+
+Tutorial de visualización de datos
+
+### Visualización univariada de datos
+
+La visualización de datos es una parte crucial de EDA. Utilice bibliotecas como ggplot2, matplotlib o seaborn para crear visualizaciones interesantes. Visualice variables individuales mediante histogramas, diagramas de caja y diagramas de barras. Para este ejercicio de visualización de datos utilizaremos la base de datos completa de mtcars.
+
+```{r}
+# Histograma
+hist(mtcars$mpg)
+
+# Diagrama de cajas
+boxplot(mtcars$mpg)
+
+# Gráfico de barras (categórico)
+barplot(table(mtcars$cyl))
+```
+
+### Análisis bivariado de datos
+
+Explore las relaciones entre dos variables con diagramas de dispersión y diagramas de correlación.
+
+```{r}
+# Scatter plot
+plot(mtcars$mpg, mtcars$hp)
+
+# Correlation 
+correlation_matrix <- cor(mtcars[, c("mpg", "hp")])
+correlation_matrix
+```
+```{r}
+mtcars$loghp <- log(mtcars$hp)
+plot(mtcars$mpg, mtcars$loghp)
+```
+
+### Analisis multivariable
+
+Visualice relaciones entre múltiples variables utilizando técnicas como mapas de calor y gráficos de pares.
+
+```{r}
+# Heatmap
+library(ggplot2)
+ggplot(mtcars, aes(x = mpg, y = hp, color = wt)) +
+   geom_point(size = 3) 
+
+# Pair plot
+library(GGally)
+ggpairs(mtcars[, c("mpg", "hp", "wt")])
+```
+
+### Personalización de parcelas
+
+Personalice gráficos con títulos, etiquetas, colores y temas usando ggplot2.
+
+```{r}
+# Adding titles and labels
+ggplot(mtcars, aes(x = mpg)) +
+  geom_histogram() +
+  labs(title = "Histogram of MPG", x = "Miles per Gallon", y = "Frequency")
+
+# Changing colors and themes
+ggplot(mtcars, aes(x = mpg)) +
+  geom_histogram(fill = "blue", color = "black") +
+  theme_minimal()
+```
+
+## Manejo de valores atípicos
+
+### Identificar valores atípicos
+
+Utilice métodos estadísticos como la puntuación Z, el IQR o técnicas de visualización para identificar valores atípicos.
+
+```{r}
+# Box plot para detectar valores extremos
+boxplot(mtcars$mpg)
+qqPlot(mtcars$mpg)
+
+# Z-score
+z_scores <- scale(mtcars$mpg)
+outliers <- abs(z_scores) > 2
+outlying_data <- mtcars[outliers, ]
+```
+```{r}
+boxplot(z_scores)
+```
+
+### Lidiando con valores extremos
+
+Decida si desea eliminar, transformar o mantener los valores atípicos según el conocimiento del dominio y el contexto de los datos.
+
+```{r}
+# Removemos a los valores extremos
+mtcars_clean <- mtcars[!outliers, ]
+
+# Transformamos los valores extremos
+mtcars$mpg[outliers] <- log(mtcars$mpg[outliers])
+```
+
+## Transformación de datos
+
+### Escalamiento
+
+Escalar variables numéricas para que tengan media cero y varianza unitaria.
+
+```{r}
+# Escalamiento Min-Max
+mtcars$mpg <- (mtcars$mpg - min(mtcars$mpg)) / (max(mtcars$mpg) - min(mtcars$mpg))
+```
+
+### Estandarización
+
+Estandarizar variables numéricas para que tengan media cero y varianza unitaria.
+
+```{r}
+# Estandarización
+mtcars$mpg <- scale(mtcars$mpg)
+```
+
+## Imputación de datos
+
+Maneje los valores faltantes imputándolos con valores apropiados como la media, la mediana o mediante métodos de imputación más avanzados.
+
+### Cargue las librerias mic y maniar
+
+```{r}
+# Install and load the required libraries
+#install.packages("naniar")
+#install.packages("mice")
+
+library(naniar)
+library(mice)
+
+```
+
+### Cargue su data
+
+Para este ejercicio introduciremos algunos datos perdidos a la base de datos **mtcars**.
+
+```{r}
+# mtcars dataset
+data(mtcars)
+
+# Introducimos datos perdidos
+set.seed(123)  # para reproducibilidad
+mtcars[sample(1:nrow(mtcars), 10), "mpg"] <- NA  # código para introducir datos perdidos en la variable 'mpg'
+
+# Verificamos cuántos registros tienen datos perdidos
+table(complete.cases(mtcars))
+```
+
+### Escoja un método de imputación
+
+```{r}
+# Create a mice object
+mice_obj <- mice(mtcars, m = 5, maxit = 50, method = "pmm", seed = 123)
+
+# View the imputed dataset
+imputed_mtcars <- complete(mice_obj)
+imputed_mtcars
+```
+
+### Compare la calidad de la imputación
+
+```{r}
+# Compare imputed vs. observed values
+compare_df <- cbind(Original = mtcars, Imputed = imputed_mtcars)
+```
+
+### Use la data imputada
+
+```{r}
+# Regression lineal con la data imputada
+model <- lm(mpg ~ wt + hp + qsec, data = imputed_mtcars)
+summary(model)
+```
+```{r}
+# Regression lineal con la data imputada
+model <- lm(mpg ~ wt + hp + qsec, data = mtcars)
+summary(model)
+```

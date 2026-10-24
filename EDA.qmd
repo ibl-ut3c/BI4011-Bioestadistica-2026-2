@@ -60,10 +60,10 @@ library(plyr)
 library(grid)
 library(gridExtra) 
 library(carData) #qqplot
-# library(car) #qqplot
+library(car) #qqplot
 library(dplyr)
 library(ggplot2)
-# library(modeest)
+library(modeest)
 library(plotrix)
 library(nortest)
 library(colorspace)

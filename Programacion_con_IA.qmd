@@ -42,14 +42,14 @@ View(Data)
 Data$tecnica <- factor(Data$tecnica,labels=c("Lichtenstein","Nyhus"))
 ```
 
-### Frecuencias absolutas de tecnica
+### Frecuencias absolutas de técnica
 
 ```{r}
 tabla_tecnica_absoluta <- table(Data$tecnica)
 print(tabla_tecnica_absoluta)
 ```
 
-### Frecuencias relativas de tecnica
+### Frecuencias relativas de técnica
 
 ```{r}
 tabla_tecnica_relativa <- prop.table(tabla_tecnica_absoluta)
@@ -133,7 +133,7 @@ Data$grupo_etario <- cut(Data$edad,
 ```{r}
 tabla_grupoetario_absoluta <- table(Data$grupo_etario)
 print(tabla_grupoetario_absoluta)
-tabla_grupoetario_relativa <- prop.table(tabla_grupoetario_absoluta, margin = 2)
+tabla_grupoetario_relativa <- prop.table(tabla_grupoetario_absoluta)
 print(tabla_grupoetario_relativa)
 ```
 
@@ -280,6 +280,12 @@ Resultado: como el valor p no es menor de 0.005 no se rechaza la hipotesis nula 
 # Codigo para empezar nuestro análisis multivariado y nuestra tabla 3
 
 ## Cargar paquetes
+
+```{r}
+if (!require("remotes")) install.packages("remotes")
+remotes::install_version("VIM")
+```
+
 
 ```{r}
 # Llamamos a los paquetes

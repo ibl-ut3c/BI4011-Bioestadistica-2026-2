@@ -1,0 +1,387 @@
+---
+title: "Pruebas de Hipótesis"
+author: "Antonio M. Quispe MD PhD"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+## Objetivos de aprendizaje
+
+Después de finalizar esta práctica desarrollada deberías ser capaz de:
+
+-   Comprender los diferentes métodos de correlación
+-   Seleccionar la prueba de hipótesis correcta de acuerdo a tu pregunta de investigación
+-   Conocer las diferentes pruebas de hipótesis y sus criterios de aplicación
+
+Instalamos los Paquetes que vamos a utilizar
+
+```{r message=FALSE, warning=FALSE}
+install.packages("infer")
+install.packages("broom")
+install.packages("knitr")
+install.packages("readxl")
+install.packages("cowplot")
+install.packages("nycflights13")
+install.packages("corrplot")
+install.packages("Hmisc")
+install.packages("psych")
+install.packages("skimr")
+install.packages("rlang")
+install.packages("estimatr")
+install.packages("margins")
+install.packages("stargazer")
+install.packages("lmtest")
+install.packages("foreign")
+install.packages("GGally")
+install.packages("AICcmodavg")
+install.packages("gridExtra")
+install.packages("flexsurv")
+install.packages("EnvStats")
+```
+
+Cargamos los paquetes
+
+```{r message=FALSE, warning=FALSE}
+library(infer)
+library(broom)
+library(knitr)
+library(readxl)
+library(cowplot)
+library(nycflights13)
+library(dplyr)
+library(stringr)
+library(infer)
+library(datasets)
+library(corrplot)
+library(Hmisc)
+library(psych)
+library(skimr)
+library(rlang)
+library(estimatr)
+library(margins)
+library(stargazer)
+library(lmtest)
+library(ggpubr)
+library(foreign)
+library(GGally)
+library(AICcmodavg)
+library(gridExtra)
+library(RVAideMemoire)
+library(rstatix)
+require(flexsurv)
+require(EnvStats)
+```
+
+## **Estudio de caso: Bebidas azucaradas vs no azucaradas**
+
+Creamos una base de datos con los IMC de nuestros expuestos y no expuestos al consumo de bebidas azucaradas vs. bebidas no azucaradas.
+
+Para ello utilizamos los paquetes `dplyr`, `tidyr` y `purr`.
+
+```{r}
+# Creamos nuestra base de datos
+basededatos = data.frame(Expuestos = c(23, 25, 26, 24, 22, 21, 28, 27, 26, 23, 30, 35, 36, 34, 32, 31, 38, 17, 36, 33),
+                          NoExpuestos = c(20, 19, 18, 23, 25, 22, 21, 24, 26, 27, 30, 29, 28, 33, 35, 32, 31, 28, 26, 27))
+basededatos
+```
+
+### Configuración de la base de datos
+
+Para que no tenga que ingresar el nombre en cada variable configure la base de datos con el paquete `dplyr`. Este paquete contiene la función `attach` que nos permite acceder a los nombres de las variables sin la necesidad de llamarlos.
+
+```{r}
+attach(basededatos)
+```
+
+### Análisis de normalidad
+
+Resumen
+
+```{r}
+summary(basededatos)
+```
+
+### Coeficiente de variación
+
+```{r}
+cv_Expuestos <- sd(basededatos$Expuestos) / mean(basededatos$Expuestos) * 100
+cv_Expuestos
+cv_NoExpuestos <- sd(basededatos$NoExpuestos) / mean(basededatos$NoExpuestos) * 100
+cv_NoExpuestos
+```
+
+Análisis gráfico de normalidad
+
+```{r}
+shapiro.test(basededatos$Expuestos)
+shapiro.test(basededatos$NoExpuestos)
+```
+
+Análisis gráfico de normalidad
+
+```{r}
+#install.packages("qqlotr")
+#library(qqplotr)
+qqPlot(basededatos$Expuestos)
+qqPlot(basededatos$NoExpuestos)
+```
+
+
+## Análisis de correlacion
+
+El análisis de correlación determina el grado de asociación de dos variables. Se denomina coeficiente de correlación y se representa con la letra r. El coeficiente puede variar de -1 a +1, donde -1 significa una fuerte relación negativa y +1 significa una fuerte relación positiva. La hipótesis nula en una prueba de correlación es una correlación de 0, lo que significa que no hay ninguna relación.
+
+Como primer paso, compararemos los diferentes métodos de correlación.
+
+#### Índice de correlación de Pearson
+
+```{r}
+cor(basededatos$Expuestos,basededatos$NoExpuestos,
+    method = c("pearson"))
+```
+
+#### Índice de correlación de Spearman
+
+```{r}
+cor(basededatos$Expuestos,basededatos$NoExpuestos,
+  method = c("spearman"))
+```
+
+#### Índice de correlación de Kendall
+
+```{r}
+cor(basededatos$Expuestos,basededatos$NoExpuestos,
+    method = c("kendall"))
+```
+
+#### Comparación de correlaciones
+
+Vemos que Pearson y Spearman son más o menos iguales, pero Kendall es muy diferente. Esto se debe a que Kendall es una prueba de fuerza de dependencia, mientras que Pearson y Spearman son casi equivalentes en la forma en que correlacionan los datos normalmente distribuidos. Todas estas correlaciones son correctas en sus resultados, solo que Pearson y Spearman están mirando los datos de una manera y Kendall, de otra.
+
+
+## Pruebas de hipótesis
+
+Las pruebas estadísticas permiten realizar pruebas de hipótesis con el fin de determinar si una variable independiente (también denominada de exposición o predictora) tiene una relación estadísticamente significativa con una variable dependiente (de resultado).
+
+La hipótesis nula asume que no existe diferencia entre el valor observado y esperado. Mientras que la hipótesis alternativa propone que hay una diferencia.
+
+Las pruebas de hipótesis determinarán si se rechaza la hipótesis nula bajo un parámetro de confianza. Rechazamos la hipótesis nula cuando p es menor a 0.05.
+
+Ambas hipótesis ofrecen respuestas opuestas a una pregunta de investigación determinada. Además, para cada pregunta de investigación se elige una hipótesis estadística en particular.
+
+**Estudio de caso**
+
+Creamos una base de datos con los IMC de nuestros expuestos y no expuestos al consumo de bebidas azucaradas vs. bebidas no azucaradas
+
+Para ello utilizamos los paquetes `dplyr`, `tidyr` y `purr`.
+
+```{r}
+# Creamos nuestra base de datos
+basededatos2 = data.frame(outcome = c(23, 25, 26, 24, 22, 21, 28, 27, 26, 23, 30, 35, 36, 34, 32, 31, 38, 17, 36, 33, 20, 19, 18, 23, 25, 22, 21, 24, 26, 27, 20, 29, 28, 23, 25, 22, 31, 28, 26, 27),
+                          exposición = c("e", "e","e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne", "ne"),
+                          confusor_dicotómico = c("f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m", "f", "m"),
+                          confusor_politómico = c("q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4", "q1", "q2", "q3", "q4"))
+basededatos2
+```
+
+**Configuración de la base de datos**
+
+Para que no tenga que ingresar el nombre en cada variable configure la base de datos con el paquete `dplyr`. Este paquete contiene la función `attach` que nos permite acceder a los nombres de las variables sin la necesidad de llamarlos.
+
+```{r}
+attach(basededatos2)
+```
+
+### Comparación de dos muestras independientes
+
+Es un supuesto en el cual se contrasta si existe una diferencia signiticativa en la media de una variable de resultado entre dos poblaciones diferentes e independientes
+
+##### T student para comparación de medias independientes
+
+Para utilizar esta prueba es necesario cumplir 4 criterios: la muestra debe ser aleatoria, los grupos deben mostrar independencia entre las observaciones, la distribución debe ser normal o n \> 30 para cada grupo y las varianzas de los grupos deben ser iguales.
+
+La hipótesis nula para esta prueba es que la diferencia entre las medias o medianas de los grupos respectivamente es igual a 0 (μ2 = μ1), mientras que la hipótesis alterna indica lo contrario (μ2≠ μ1).
+
+```{r}
+t.test(basededatos2$outcome ~ basededatos2$exposición) 
+```
+
+Notamos que dado que el p-valor es menor a nuestra alfa (el 95% de confianza que es 0.05) podemos rechazar la hipótesis nula y concluir que hemos encontrado una diferencias estadísticamente significativas y que de las medias de IMC entre los expuestos y no expuestos es diferente de 0.
+
+**Graficamos**
+
+```{r}
+ggplot(basededatos2, aes(x=exposición, y=outcome)) +
+  geom_boxplot(fill='#BFD4FF') +
+  theme_classic() + 
+  labs (title="Diagrama de cajas", y= "IMC (kg/m2)", x="Bebidas Azucaradas") +
+  scale_x_discrete(labels=c('Expuestos', 'No Expuestos'))  + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+##### Mann Whitney para comparación de medianas independientes
+
+Para utilizar esta prueba es necesario tener en cuenta 4 supuestos: la muestra debe ser aleatoria, los grupos deben mostrar independencia entre las observaciones, la distribución debe ser normal o n \> 30 para cada grupo y las varianzas de los grupos deben ser iguales.
+
+La hipótesis nula para esta prueba es que la diferencia entre las medias o medianas de los grupos respectivamente es igual a 0 (μ2 = μ1), mientras que la hipótesis alterna indica lo contrario (μ2≠ μ1).
+
+```{r}
+wilcox.test(basededatos2$outcome ~ basededatos2$exposición)
+```
+
+Se rechaza la hipótesis nula y se concluye que la distribución de la variable "tiempo hospitalización" y la variable "complicaciones" son diferentes. Mientras que para la variable "edad", de media 50, no se rechaza la hipótesis nula.
+
+##### Chi cuadrado para comparación de proporciones independientes
+
+Es recomendable para variables nominales, categóricas o cuando deseamos trabajar con la frecuencia.
+
+```{r}
+chisq.test(basededatos2$exposición,basededatos2$confusor_dicotómico) 
+```
+
+No se rechaza la hipótesis nula al ser el p-valor superior a alfa, lo cual significa que las variables son independientes y no hay relación entre las dos variables categóricas.
+
+##### Exacta de Fischer para comparación de proporciones independientes
+
+Es recomendable para analizar tablas de contingencia con muestras pequeñas y frecuencias menores de 5.t_hosp vs. anciano. Con este codigo podemos obtener el valor de Chi cuadrado para muestras pequeñas (frecuencias menores a 5)
+
+```{r}
+fisher.test(basededatos2$exposición,basededatos2$confusor_dicotómico)
+```
+
+No se rechaza la hipótesis nula al ser p mayor a 0.05. Significa que la variable "tiempo de hospitalización" y "anciano" son independientes y por ende no existe una relación entre ambas
+
+### Comparación de dos muestras pareadas
+
+Normalmente se usa en investigaciones en las que se mide la variable dependiente antes y después de cambiar la variable.
+
+#### T de Student para comparación de medias pareadas
+
+Para utilizar esta prueba es necesario tener en cuenta 3 supuestos: la muestra debe ser aleatoria, las muestras deben ser pareadas, la distribución debe ser normal o haber un n \> 30 en la diferencia de las muestras.
+
+Se utiliza la prueba T-test agregando `paired=TRUE`, este parametro adicional especifica que son datos pareados.
+
+```{r}
+t.test(basededatos$Expuestos,basededatos$NoExpuestos, paired = TRUE)
+```
+
+El valor p es inferior a alfa, por ende es estadísticamente significativo y se rechaza la hipótesis nula.
+
+#### Wilcoxon para comparación de medianas pareadas
+
+Para utilizar esta prueba es necesario tener en cuenta 3 supuestos: las muestras deben ser aleatorias, la variable a contrastar debe ser continua y estar en, al menos, escala de intervalo tal que los valores se puedan restar, y la distribución de la diferencia debe ser simétrica alrededor de la media.
+
+Como en el caso anterior, el parámetro adicional especifica que son datos pareados.
+
+```{r}
+wilcox.test(basededatos$Expuestos,basededatos$NoExpuestos, paired = TRUE)
+```
+
+El valor p es inferior a alfa, por ende podemos concluir que el peso de los pacientes antes del tiempo de la enfermedad es significativamente diferente.
+
+#### McNemar para comparación de proporciones pareadas
+
+Este test analiza si la probabilidad de un evento para una variable es igual en los dos niveles de otra variable. Se utiliza para variables dicotómicas.
+
+```{r}
+mcnemar.test(basededatos2$exposición, basededatos2$confusor_dicotómico)
+```
+
+El valor p es inferior a alfa, esto quiere decir que se rechaza la hipótesis nula y se concluye que el sexo sí influye en la obesidad, por lo que la proporción de las personas de género masculino y femenino es diferente a los sujetos que pasar de ser a no ser obesos.
+
+### Comparación de más de dos muestras independientes
+
+#### ANOVA para comparación de más de dos medias independientes
+
+El análisis de varianza (ANOVA) se emplea para determinar si existen diferencias significativas entre las medias de dos o más poblaciones.
+
+```{r}
+basededatos3 <- aov(outcome ~ confusor_politómico, 
+                    data = basededatos2)
+summary(basededatos3)
+```
+
+El valor p es superior a alfa, por ende no rechazamos la hipótesis nula de igualdad y concluimos que no hemos observado diferencias significativas entre las medias de edad según sexo y técnica.
+
+#### Kruskal-Wallis para comparación de más de dos medianas independientes
+
+Emplea rangos para contrastar la hipótesis de que k muestras han sido obtenidas de una misma población.
+
+A diferencia del ANOVA en el que se comparan medias, el test de Kruskal-Wallis contrasta si las diferentes muestras están equidistribuidas y que por lo tanto pertenecen a una misma distribución (población). Bajo ciertas simplificaciones puede considerarse que el test de Kruskal-Wallis compara las medianas.
+
+H0: todas las muestras provienen de la misma población (distribución). HA: Al menos una muestra proviene de una población con una distribución distinta.
+
+```{r}
+#Prueba de Kruskal-Wallis
+kruskal.test(outcome ~ confusor_politómico, data = basededatos2)
+```
+
+```{r}
+#diagrama de caja para verificar la distribucion
+#de los datos
+ggplot(basededatos2, aes(x = exposición, y = outcome, col = confusor_politómico)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2) +
+  theme(legend.position="top") + 
+  labs (title="Diagrama de cajas", y= "IMC", x="Bebidas Azucaradas") +
+  scale_x_discrete(labels=c('Expuestos', 'No Expuestos')) 
+```
+
+Como el valor de p obtenido de la prueba de Kruskal-Wallis es significativo (20.61, p \< 0.05), concluimos que existen diferencias significativas en el tiempo de la enfermedad entre los tipos de nyhus.
+
+### Comparación de Medianas de más de dos muestras pareadas
+
+#### Prueba de Friedman
+
+Evalúa si existen diferencias entre las distribuciones de tres o más muestras pareadas. Es recomendable usar esta prueba cuando no se cumplen los supuestos de normalidad de la prueba ANOVA de una vía o cuando la variable dependiente se mide en una escala ordinal.
+
+Para este ejemplo, creamos un marco de datos.
+
+```{r}
+df <- tribble(
+  ~id, ~t1, ~t2, ~t3,
+   "1", 23.4, 26.1, 29.5,
+   "2", 22.1, 25.5, 29.1,
+   "3", 25.5, 28.0, 30.4,
+   "4", 24.0, 29.2, 32.0,
+   "5", 23.1, 27.2, 33.3)
+```
+
+Con la función `gather` colapsamos los datos y convertimos en factor a las variables "id" y "tiempo" con la función `as.factor`.
+
+```{r}
+df <- df %>%
+  tidyr::gather(key = "tiempo", value = "imc", t1, t2, t3)
+
+#convertimos a factor
+df$id <- as.factor(df$id)
+df$tiempo <- as.factor(df$tiempo)
+  
+```
+
+**Graficamos**
+
+```{r}
+library(ggpubr)
+ggboxplot(df, x = "tiempo", y = "imc", add = "jitter")
+```
+
+Ahora, usammos `friedman_test` .
+
+```{r}
+friedman.test(imc ~ tiempo | id, data = df)
+```
+
+Rechazamos la hipótesis nula y concluimos que al menos una mediana es diferente.
+
+#### Prueba Q de Cochrane
+
+Esta prueba permite comprobar la igualdad de más de dos muestras relacionadas en una variable dicotómica. Es equivalente a la prueba McNemar, pero para más de dos muestras.
+
+```{r}
+mantelhaen.test(basededatos2$confusor_politómico, basededatos2$confusor_dicotómico, basededatos2$exposición)
+```
+
+Se rechaza la hipótesis nula y se concluye que al menos una proporción es diferente.

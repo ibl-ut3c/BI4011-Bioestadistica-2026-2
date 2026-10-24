@@ -1,0 +1,309 @@
+---
+title: "Informe estadístico preliminar: factores asociados a coinfección bacteriana en pacientes con COVID-19 hospitalizados en UCI"
+author: "Estadístico del estudio"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+  docx: default
+  pdf: default
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 8, fig.height = 5, dpi = 300)
+```
+
+# 1. Escenario y objetivo
+
+El objetivo de este estudio es identificar factores de riesgo asociados a la **coinfección bacteriana** en pacientes adultos con COVID-19 hospitalizados en UCI. Este informe presenta el análisis estadístico **preliminar**: describe las características sociodemográficas y clínicas de los pacientes y compara a quienes tuvieron diagnóstico de coinfección bacteriana con quienes no lo tuvieron.
+
+La variable desenlace principal es `coinfeccion_diagnóstico`.
+
+# 2. Paquetes y base de datos
+
+Se usan únicamente paquetes que aparecen en las prácticas de referencia (`readxl`, `dplyr`, `ggplot2`, `ggpubr`, `knitr`, `scales`).
+
+```{r paquetes}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(knitr)
+library(scales)
+```
+
+```{r lectura}
+# El archivo PC1_Hackaton.xlsx debe estar en la misma carpeta que este .qmd
+Data <- read_excel("PC1_Hackaton.xlsx", sheet = "data")
+dim(Data)
+```
+
+# 3. Preparación de los datos
+
+Observaciones importantes sobre la base:
+
+- En `coinfeccion_diagnóstico` solo aparece el valor "Si" (93 pacientes); los 163 restantes están **vacíos**. Se interpreta que el vacío significa *sin diagnóstico de coinfección* y se recodifica como "No".
+- `fecha_defuncion` contiene fechas para los fallecidos y el texto " - -" para los vivos; se convierte a fecha real.
+- Como **tiempo de hospitalización** se usa directamente la variable `fec_hos_` (fecha de hospitalización), sin ningún procesamiento adicional; se convierte a formato fecha solo para graficarla.
+- Las variables de aislamiento bacteriano (`Aislamiento_*`, `Tipo_muestra_*`, `Clasificacion_bacteriana_*`) son la base del diagnóstico de coinfección, por lo que **no** se incluyen como características comparadas (serían circulares).
+
+```{r limpieza}
+# Convierte columnas con fechas mezcladas con texto a Date
+a_fecha <- function(x) {
+  if (inherits(x, c("Date", "POSIXct"))) return(as.Date(x))
+  as.Date(suppressWarnings(as.numeric(as.character(x))), origin = "1899-12-30")
+}
+
+Data <- Data %>%
+  mutate(
+    coinfeccion = factor(ifelse(is.na(`coinfeccion_diagnóstico`), "No", "Si"),
+                         levels = c("No", "Si"),
+                         labels = c("Sin coinfección", "Con coinfección")),
+    sexo = factor(sexo_, levels = c("F", "M"), labels = c("Femenino", "Masculino")),
+    condicion_final = factor(condicion_final, levels = c("Vivo", "Muerto")),
+    estrato_ = factor(estrato_),
+    fec_hos_ = a_fecha(fec_hos_),
+    fecha_defuncion = a_fecha(fecha_defuncion)
+  )
+
+# Nombres sin espacios ni símbolos para trabajar más cómodo
+Data <- Data %>%
+  rename(edad = edad_, apache = `APACHE II`, ncomorb = `Numero de comorbilidades`,
+         vmi = `VMI_<48h`, cvc = `Cateter_ven_cen_<48h`, cur = `Cateter_uri_<48h`,
+         antib = `uso_antib_<48h_`, cortico = `Uso_corticoes_<48h`,
+         area = area_, seguro = tip_ss_, estrato = estrato_,
+         inmunosup = `Toma medicamentos inmunosupresores`)
+
+table(Data$coinfeccion, useNA = "ifany")
+summary(Data$fec_hos_)
+```
+
+# 4. Tabla 1. Características de los pacientes según coinfección bacteriana
+
+Criterios de análisis (siguiendo las prácticas del curso):
+
+- **Numéricas**: se evalúa normalidad con Shapiro-Wilk en cada grupo. Si ambos grupos son normales: media (DE) y prueba t de Student/Welch; en caso contrario: mediana \[RIC\] y prueba de Wilcoxon (Mann-Whitney).
+- **Categóricas**: n (%) por columna y prueba de chi-cuadrado; si alguna frecuencia esperada es menor de 5, prueba exacta de Fisher.
+- Significancia: p \< 0,05.
+
+```{r funciones-tabla1}
+fmt_p <- function(p) ifelse(p < 0.001, "<0.001", sprintf("%.3f", p))
+grupo <- Data$coinfeccion
+
+# Variable numérica -> una fila
+fila_num <- function(var, etiqueta) {
+  x <- Data[[var]]
+  normal <- all(sapply(levels(grupo), function(g) {
+    xg <- x[grupo == g & !is.na(x)]
+    length(xg) >= 3 && shapiro.test(xg)$p.value >= 0.05
+  }))
+  res <- sapply(levels(grupo), function(g) {
+    xg <- x[grupo == g & !is.na(x)]
+    if (normal) sprintf("%.1f (%.1f)", mean(xg), sd(xg))
+    else sprintf("%.1f [%.1f-%.1f]", median(xg), quantile(xg, .25), quantile(xg, .75))
+  })
+  p <- if (normal) t.test(x ~ grupo)$p.value else wilcox.test(x ~ grupo, exact = FALSE)$p.value
+  data.frame(Característica = paste0(etiqueta, ifelse(normal, ", media (DE)", ", mediana [RIC]")),
+             Sin = res[1], Con = res[2],
+             Prueba = ifelse(normal, "t de Student", "Wilcoxon"),
+             p = fmt_p(p), stringsAsFactors = FALSE)
+}
+
+# Variable categórica -> una fila encabezado + una fila por nivel
+fila_cat <- function(var, etiqueta) {
+  x <- factor(Data[[var]])
+  tab <- table(x, grupo)
+  esp <- suppressWarnings(chisq.test(tab)$expected)
+  usa_fisher <- any(esp < 5)
+  p <- if (usa_fisher) fisher.test(tab, simulate.p.value = nrow(tab) > 2 || ncol(tab) > 2,
+                                   B = 10000)$p.value
+       else chisq.test(tab)$p.value
+  pct <- prop.table(tab, margin = 2) * 100
+  # Variables dicotómicas Si/No: mostrar solo la fila "Si"
+  niveles <- if (setequal(levels(x), c("No", "Si"))) "Si" else levels(x)
+  filas <- lapply(niveles, function(l)
+    data.frame(Característica = paste0("   ", l),
+               Sin = sprintf("%d (%.1f%%)", tab[l, 1], pct[l, 1]),
+               Con = sprintf("%d (%.1f%%)", tab[l, 2], pct[l, 2]),
+               Prueba = "", p = "", stringsAsFactors = FALSE))
+  if (length(niveles) == 1) {
+    filas[[1]]$Característica <- etiqueta
+    filas[[1]]$Prueba <- ifelse(usa_fisher, "Fisher", "Chi-cuadrado")
+    filas[[1]]$p <- fmt_p(p)
+    return(filas[[1]])
+  }
+  cab <- data.frame(Característica = etiqueta, Sin = "", Con = "",
+                    Prueba = ifelse(usa_fisher, "Fisher", "Chi-cuadrado"),
+                    p = fmt_p(p), stringsAsFactors = FALSE)
+  bind_rows(cab, bind_rows(filas))
+}
+```
+
+```{r tabla1}
+n_g <- table(grupo)
+
+tabla1 <- bind_rows(
+  data.frame(Característica = "**Sociodemográficas**", Sin = "", Con = "", Prueba = "", p = ""),
+  fila_num("edad", "Edad (años)"),
+  fila_cat("sexo", "Sexo"),
+  fila_cat("area", "Área de procedencia"),
+  fila_cat("seguro", "Tipo de seguridad social"),
+  fila_cat("estrato", "Estrato socioeconómico"),
+  data.frame(Característica = "**Comorbilidades**", Sin = "", Con = "", Prueba = "", p = ""),
+  fila_num("ncomorb", "Número de comorbilidades"),
+  fila_cat("hipertension", "Hipertensión"),
+  fila_cat("diabetes", "Diabetes"),
+  fila_cat("obesidad", "Obesidad"),
+  fila_cat("epoc", "EPOC"),
+  fila_cat("enf_card", "Enfermedad cardiovascular"),
+  fila_cat("ins_renal", "Insuficiencia renal"),
+  data.frame(Característica = "**Gravedad y manejo en UCI**", Sin = "", Con = "", Prueba = "", p = ""),
+  fila_num("apache", "APACHE II"),
+  fila_cat("vmi", "Ventilación mecánica invasiva ≤48 h"),
+  fila_cat("cvc", "Catéter venoso central ≤48 h"),
+  fila_cat("cur", "Catéter urinario ≤48 h"),
+  fila_cat("antib", "Uso de antibióticos ≤48 h"),
+  fila_cat("cortico", "Uso de corticoides ≤48 h"),
+  data.frame(Característica = "**Cuadro clínico**", Sin = "", Con = "", Prueba = "", p = ""),
+  fila_cat("tos", "Tos"),
+  fila_cat("fiebre", "Fiebre"),
+  fila_cat("dif_res", "Dificultad respiratoria"),
+  fila_cat("adinamia", "Adinamia"),
+  fila_cat("hallaz_rad", "Hallazgo radiológico"),
+  fila_cat("falla_resp", "Falla respiratoria"),
+  fila_cat("septicemia", "Septicemia"),
+  data.frame(Característica = "**Desenlace**", Sin = "", Con = "", Prueba = "", p = ""),
+  fila_cat("condicion_final", "Muerte (condición final)")
+)
+
+names(tabla1) <- c("Característica",
+                   paste0("Sin coinfección (n=", n_g[1], ")"),
+                   paste0("Con coinfección (n=", n_g[2], ")"),
+                   "Prueba", "Valor p")
+
+kable(tabla1, align = c("l", "c", "c", "c", "c"),
+      caption = "Tabla 1. Características sociodemográficas y clínicas de pacientes con COVID-19 en UCI, según diagnóstico de coinfección bacteriana")
+```
+
+*Nota.* Valores como n (%) por columna, salvo donde se indica media (DE) o mediana \[RIC\]. En variables Si/No se muestra solo la categoría "Si". RIC = rango intercuartílico. Variables con muy pocos casos (inmunosupresores, asma, cáncer, fumador, tuberculosis, desnutrición, VIH, etc.) no se tabulan por tener frecuencias \< 5 y ninguna variación en el caso de VIH.
+
+# 5. Figuras
+
+```{r colores}
+col_coinf <- c("Sin coinfección" = "#4C78A8", "Con coinfección" = "#E45756")
+col_sexo  <- c("Femenino" = "#F58518", "Masculino" = "#54A24B")
+```
+
+## Figura 1. Distribución de la población según edad y género, por coinfección
+
+```{r fig1, fig.width=10, fig.height=5}
+ggplot(Data, aes(x = sexo, y = edad, fill = sexo)) +
+  geom_violin(alpha = 0.6, color = "black") +
+  geom_boxplot(width = 0.2, alpha = 0.8, color = "black") +
+  facet_wrap(~ coinfeccion) +
+  scale_fill_manual(values = c("Masculino" = "#2b5c8f", "Femenino" = "#d95f02")) +
+  stat_compare_means(method = "wilcox.test", label.x = 1.5, size = 3.5) +
+  labs(
+    title = "Figura 1. Distribución de la Población según Edad y Género, por Coinfección",
+    subtitle = "Gráficos de violín con cajas dentro; la línea en la caja indica la mediana",
+    x = "Género",
+    y = "Edad (Años)",
+    fill = "Género"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5, color = "gray30"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r fig1-resumen}
+Data %>% group_by(coinfeccion, sexo) %>%
+  summarise(n = n(), mediana = median(edad), Q1 = quantile(edad, .25), Q3 = quantile(edad, .75),
+            .groups = "drop") %>%
+  kable(digits = 1, caption = "Resumen de edad por coinfección y sexo")
+```
+
+## Figura 2. Distribución según coinfección y tiempo de hospitalización
+
+El tiempo de hospitalización se representa con la variable `fec_hos_` (fecha de hospitalización) tal como está en la base.
+
+```{r fig2, fig.width=9, fig.height=5}
+g2a <- ggplot(Data, aes(x = coinfeccion, y = fec_hos_, fill = coinfeccion)) +
+  geom_boxplot(width = 0.5, alpha = 0.85, outlier.shape = NA) +
+  geom_jitter(width = 0.12, alpha = 0.5, size = 1.6) +
+  scale_fill_manual(values = col_coinf) +
+  scale_y_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  stat_compare_means(method = "wilcox.test", label.x = 1.25,
+                     label.y = max(Data$fec_hos_) + 20) +
+  labs(x = NULL, y = "Fecha de hospitalización (fec_hos_)", title = "A. Boxplot") +
+  theme_minimal() + theme(legend.position = "none")
+
+g2b <- ggplot(Data, aes(x = fec_hos_, fill = coinfeccion)) +
+  geom_histogram(bins = 25, color = "white", alpha = 0.9) +
+  facet_wrap(~ coinfeccion, ncol = 1) +
+  scale_fill_manual(values = col_coinf) +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  labs(x = "Fecha de hospitalización (fec_hos_)", y = "Número de pacientes",
+       title = "B. Histograma") +
+  theme_minimal() + theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggarrange(g2a, g2b, ncol = 2)
+```
+
+```{r fig2-resumen}
+Data %>% group_by(coinfeccion) %>%
+  summarise(n = n(), mediana = median(fec_hos_), Q1 = quantile(fec_hos_, .25, type = 1),
+            Q3 = quantile(fec_hos_, .75, type = 1), min = min(fec_hos_), max = max(fec_hos_)) %>%
+  kable(caption = "Fecha de hospitalización (fec_hos_) según coinfección")
+```
+
+## Figura 3. Distribución según coinfección y muerte
+
+```{r fig3, fig.width=8, fig.height=5}
+dat3 <- Data %>%
+  count(coinfeccion, condicion_final) %>%
+  group_by(coinfeccion) %>%
+  mutate(pct = n / sum(n),
+         etiqueta = paste0(n, " (", percent(pct, accuracy = 0.1), ")"))
+
+p3 <- chisq.test(table(Data$coinfeccion, Data$condicion_final))$p.value
+
+ggplot(dat3, aes(x = coinfeccion, y = pct, fill = condicion_final)) +
+  geom_col(color = "white", width = 0.6) +
+  geom_text(aes(label = etiqueta), position = position_stack(vjust = 0.5), color = "white") +
+  scale_y_continuous(labels = percent) +
+  scale_fill_manual(values = c("Vivo" = "#4C78A8", "Muerto" = "#B22222"), name = "Condición final") +
+  labs(x = NULL, y = "Porcentaje de pacientes",
+       title = "Mortalidad según diagnóstico de coinfección bacteriana",
+       caption = paste0("Chi-cuadrado, p = ", fmt_p(p3))) +
+  theme_minimal()
+```
+
+```{r fig3-prueba}
+tab_muerte <- table(Data$coinfeccion, Data$condicion_final)
+tab_muerte
+prop.table(tab_muerte, margin = 1)
+chisq.test(tab_muerte)
+```
+
+# 6. Resumen preliminar
+
+```{r resumen-inline, echo=FALSE}
+n_tot  <- nrow(Data)
+n_co   <- sum(Data$coinfeccion == "Con coinfección")
+mort_s <- mean(Data$condicion_final[Data$coinfeccion == "Sin coinfección"] == "Muerto")
+mort_c <- mean(Data$condicion_final[Data$coinfeccion == "Con coinfección"] == "Muerto")
+```
+
+- Se analizaron **`r n_tot`** pacientes en UCI; **`r n_co`** (`r percent(n_co / n_tot, accuracy = 0.1)`) tuvieron diagnóstico de coinfección bacteriana.
+- La mortalidad fue de `r percent(mort_c, accuracy = 0.1)` en pacientes con coinfección y de `r percent(mort_s, accuracy = 0.1)` en los que no la tuvieron (chi-cuadrado, p = `r fmt_p(p3)`).
+- Las diferencias de la Tabla 1 con p \< 0,05 identifican las características candidatas para el modelo multivariado de la siguiente etapa.
+- Los resultados son **preliminares y bivariados**: no controlan por confusión.

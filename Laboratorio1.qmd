@@ -1,0 +1,255 @@
+---
+title: "Laboratorio1"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(readxl)
+Data <- read_excel("PC1_Hackaton.xlsx")
+View(Data)
+```
+
+```{r}
+names(Data)[43]
+```
+
+Variable de desenlace
+```{r}
+# Factores
+Data$coinfeccion_diagnóstico[is.na(Data$coinfeccion_diagnóstico)] <- "No"
+Data$coinfeccion_diagnóstico <- factor(
+  Data$coinfeccion_diagnóstico, 
+  levels = c("No","Si"), 
+  labels = c("Sin coinfección", "Con coinfección")
+)
+
+sexo_label = factor(Data$sexo_, levels = c("M", "F"), labels = c("Masculino", "Femenino"))
+Data$sexo_ <- sexo_label
+```
+
+Frecuencia absoluta y relativa global del desenlace
+```{r}
+# Frecuencia absoluta y relativa global del desenlace
+tabla_desenlace_abs <- table(Data$coinfeccion_diagnóstico)
+tabla_desenlace_rel <- prop.table(tabla_desenlace_abs) * 100
+
+print(tabla_desenlace_abs)
+print(round(tabla_desenlace_rel, 2))
+```
+
+Función auxiliar
+```{r}
+### Código para crear nuestra propia función de estadísticos de resumen
+estadisticas <- function(x) {
+  promedio <- mean(x)
+  desviacion_estandar <- sd(x)
+  mediana <- median(x)
+  rango_intercuartilico <- IQR(x)
+  
+  return(c(Promedio = promedio, 
+           DesviacionEstandar = desviacion_estandar, 
+           Mediana = mediana, 
+           RangoIntercuartilico = rango_intercuartilico))
+}
+```
+
+Pruebas de normalidad
+```{r}
+shapiro.test(Data$edad_)
+shapiro.test(Data$`APACHE II`)
+shapiro.test(Data$`Numero de comorbilidades`)
+```
+Ninguna de las variables continuas sigue una distribución normal según la prueba de Shapiro-Wilk (p < 0.05), por lo que se utilizarán pruebas no paramétricas para las comparaciones.
+
+```{r}
+# Resumen y comparación para edad_
+stats_edad_coinf <- aggregate(edad_ ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_edad_coinf)
+
+# Resumen y comparación para APACHE II
+stats_apache_coinf <- aggregate(`APACHE II` ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_apache_coinf)
+
+# Resumen para Número de comorbilidades
+stats_ncomorb_coinf <- aggregate(`Numero de comorbilidades` ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_ncomorb_coinf)
+```
+
+Distribución de sexo
+```{r}
+# Tablas absolutas y relativas por grupo
+tabla_sexo_abs <- table(Data$sexo_)
+tabla_sexo_rel <- prop.table(tabla_sexo_abs) * 100
+
+print(tabla_sexo_abs)
+print(round(tabla_sexo_rel, 2))
+
+```
+
+Análisis de variables
+```{r}
+
+```
+
+
+
+Aux
+```{r}
+
+```
+
+
+```{r}
+# Sexo
+tabla_sexo <- table(Data$sexo_label, Data$coinfeccion)
+chisq.test(tabla_sexo)
+
+# Obesidad
+tabla_obesidad <- table(Data$obesidad, Data$coinfeccion)
+chisq.test(tabla_obesidad)
+
+# Insuficiencia Renal
+tabla_renal <- table(Data$ins_renal, Data$coinfeccion)
+fisher.test(tabla_renal)
+
+# Ventilación Mecánica Invasiva (<48h)
+tabla_vmi <- table(Data$`VMI_<48h`, Data$coinfeccion)
+chisq.test(tabla_vmi)
+
+# Catéter Venoso Central (<48h)
+tabla_cvc <- table(Data$`Cateter_ven_cen_<48h `, Data$coinfeccion)
+chisq.test(tabla_cvc)
+
+# Catéter Urinario (<48h)
+tabla_uri <- table(Data$`Cateter_uri_<48h`, Data$coinfeccion)
+fisher.test(tabla_uri)
+
+# Uso previo de antibióticos (<48h)
+tabla_antib <- table(Data$`uso_antib_<48h_`, Data$coinfeccion)
+fisher.test(tabla_antib)
+
+# Condición final (Mortalidad)
+tabla_mortalidad <- table(Data$condicion_final, Data$coinfeccion)
+chisq.test(tabla_mortalidad)
+```
+
+
+
+
+
+
+```{r}
+estadisticas_resumen <- function(x) {
+  x <- na.omit(x)
+  c(
+    Promedio = mean(x), 
+    DesviacionEstandar = sd(x), 
+    Mediana = median(x), 
+    RangoIntercuartilico = IQR(x)
+  )
+}
+
+```
+
+```{r}
+ggplot(Data, aes(x = coinfeccion_diagnóstico, y = `APACHE II`, fill = coinfeccion_diagnóstico)) +
+  geom_boxplot(alpha = 0.7, outlier.colour = "red") +
+  theme_classic() +
+  labs(
+    title = "Puntuación APACHE II según Estado de Coinfección",
+    x = "Diagnóstico de Coinfección",
+    y = "Puntaje APACHE II"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none")
+```
+
+
+```{r}
+# # Carga de la hoja 'data'
+# Data <- read_excel("PC1_Hackaton.xlsx", sheet = "data")
+# 
+# # Recodificación del Desenlace Principal y Días de Hospitalización
+# Data <- Data %>%
+#   mutate(
+#     # Desenlace principal
+#     coinfeccion_diagnóstico = ifelse(is.na(coinfeccion_diagnóstico), "No", coinfeccion_diagnóstico),
+#     coinfeccion = factor(coinfeccion_diagnóstico, levels = c("No", "Si"), labels = c("Sin coinfección", "Con coinfección")),
+    
+    # Sexo recodificado para leyendas claras
+    # sexo_label = factor(sexo_, levels = c("M", "F"), labels = c("Masculino", "Femenino"))
+    
+  #   # Cálculo de tiempo de hospitalización (en días)
+  #   fec_def_dt = as.Date(fecha_defuncion),
+  #   fec_hos_dt = as.Date(fec_hos_),
+  #   fec_exp_dt = as.Date(fec_exp),
+  #   t_hosp = ifelse(!is.na(fec_def_dt), 
+  #                   as.numeric(fec_def_dt - fec_hos_dt), 
+  #                   as.numeric(fec_exp_dt - fec_hos_dt)),
+  #   t_hosp = abs(t_hosp) # Manejo de inconsistencias negativas si existieran
+  # )
+
+# Sexo
+tabla_sexo <- table(Data$sexo_, Data$coinfeccion)
+chisq.test(tabla_sexo)
+
+# Obesidad
+tabla_obesidad <- table(Data$obesidad, Data$coinfeccion)
+chisq.test(tabla_obesidad)
+
+# Insuficiencia Renal
+tabla_renal <- table(Data$ins_renal, Data$coinfeccion)
+fisher.test(tabla_renal)
+
+# Ventilación Mecánica Invasiva (<48h)
+tabla_vmi <- table(Data$`VMI_<48h`, Data$coinfeccion)
+chisq.test(tabla_vmi)
+
+# Catéter Venoso Central (<48h)
+tabla_cvc <- table(Data$`Cateter_ven_cen_<48h `, Data$coinfeccion)
+chisq.test(tabla_cvc)
+
+# Catéter Urinario (<48h)
+tabla_uri <- table(Data$`Cateter_uri_<48h`, Data$coinfeccion)
+fisher.test(tabla_uri)
+
+# Uso previo de antibióticos (<48h)
+tabla_antib <- table(Data$`uso_antib_<48h_`, Data$coinfeccion)
+fisher.test(tabla_antib)
+
+# Condición final (Mortalidad)
+tabla_mortalidad <- table(Data$condicion_final, Data$coinfeccion)
+chisq.test(tabla_mortalidad)
+
+#| fig.width: 8
+#| fig.height: 5
+
+ggplot(Data, aes(x = edad_, fill = sexo_)) +
+  geom_density(alpha = 0.5, color = "black") +
+  geom_vline(
+    data = Data %>% group_by(sexo_) %>% summarise(mediana = median(edad_, na.rm = TRUE)),
+    aes(xintercept = mediana, color = sexo_),
+    linetype = "dashed", size = 1
+  ) +
+  scale_fill_manual(values = c("Masculino" = "#2b5c8f", "Femenino" = "#d95f02")) +
+  scale_color_manual(values = c("Masculino" = "#1b3c5f", "Femenino" = "#993f00")) +
+  labs(
+    title = "Figura 1. Distribución de la Población según Edad y Género",
+    subtitle = "Las líneas punteadas indican la mediana de edad por cada sexo",
+    x = "Edad (Años)",
+    y = "Densidad",
+    fill = "Género",
+    color = "Género"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5, color = "gray30"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+

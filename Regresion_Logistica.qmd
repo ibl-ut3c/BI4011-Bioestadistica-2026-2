@@ -1,0 +1,554 @@
+---
+title: "Regresión Logística"
+author: "Antonio M. Quispe MD PhD"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+## Objetivos de aprendizaje
+
+Después de finalizar este capítulo debería ser capaz de:
+
+-   Realizar un análisis de regresión logística.
+-   Aplicar los métodos de selección de variables Forward y Stepwise en modelos de regresión logística
+-   Realizar un análisis post regresión logística
+
+Instalamos los Paquetes que vamos a utilizar
+
+```{r message=FALSE, warning=FALSE}
+# Instalación
+#install.packages("readr")
+#install.packages("dplyr")
+#install.packages("Amelia")
+#install.packages("VIM") 
+#install.packages("ggplot2")
+#install.packages("mlogit")
+#install.packages("gridExtra")
+#install.packages("AICcmodavg")
+#install.packages("PerformanceAnalytics")
+#install.packages("corrplot")
+#install.packages("aod")
+#install.packages("car")
+```
+
+Cargamos los paquetes
+
+```{r}
+# Llamamos a los paquetes
+library(readr) #leer archivos
+library(dplyr) #tratamiento de datos
+library(Amelia) #analisis de casos perdidos
+library (VIM) #visualización de valores perdidos 
+library(mlogit) # regresión logistica
+library(ggplot2) #graficos
+library(gridExtra)#validacion de condiciones para la regresion
+library(AICcmodavg) # Método Forward 
+library(PerformanceAnalytics) #Analisis de correlación
+library(corrplot) #exploración visual en la matriz de correlación
+library(aod) #wald test
+library(car) #multicolinealidad
+```
+
+## Estudio de caso: Introducción de aves en Nueva Zelanda
+
+En el siglo XIX muchas personas intentaron llevar sus especies de aves a Nueva Zelanda, liberarlas y esperar a que se establecieran en la naturaleza. Veatman et al. (1996), querían saber qué determinaba el éxito o el fracaso de estas especies introducidas. Determinaron la presencia de 79 especies de aves introducidas artificialmente (variable dependiente) y 14 variables independientes. La regresión logistíca, en este caso, se utiliza para predecir la probabilidad de éxito de una nueva introducción de especie de ave.
+
+Para ello, en primer lugar, se realiza una correlación de variables y se procede a aplicar los diferentes métodos de regresión logística, para, posteriormente, realizar un análisis post regresión.
+
+### Creamos una tabla con los valores a utilizar
+
+Ingresamos los datos y aprovechamos para aprender a ingresar datos en Quarto manualmente.
+
+```{r}
+Input = ("Species   Status Length Mass Range Migr Insect Diet Clutch Broods Wood Upland Water Release Indiv
+ Cyg_olor  1      1520  9600 1.21  1    12     2     6     1      0    0      1      6        29
+ Cyg_atra  1      1250  5000 0.56  1     0     1     6     1      0    0      1     10        85
+ Cer_nova  1       870  3360 0.07  1     0     1     4     1      0    0      1      3         8
+ Ans_caer  0       720  2517 1.1   3    12     2     3.8   1      0    0      1      1        10
+ Ans_anse  0       820  3170 3.45  3     0     1     5.9   1      0    0      1      2         7
+ Bra_cana  1       770  4390 2.96  2     0     1     5.9   1      0    0      1     10        60
+ Bra_sand  0        50  1930 0.01  1     0     1     4     2      0    0      0      1         2
+ Alo_aegy  0       680  2040 2.71  1    NA     2     8.5   1      0    0      1      1         8
+ Ana_plat  1       570  1020 9.01  2     6     2    12.6   1      0    0      1     17      1539
+ Ana_acut  0       580   910 7.9   3     6     2     8.3   1      0    0      1      3       102
+ Ana_pene  0       480   590 4.33  3     0     1     8.7   1      0    0      1      5        32
+ Aix_spon  0       470   539 1.04  3    12     2    13.5   2      1    0      1      5        10
+ Ayt_feri  0       450   940 2.17  3    12     2     9.5   1      0    0      1      3         9
+ Ayt_fuli  0       435   684 4.81  3    12     2    10.1   1      0    0      1      2         5
+ Ore_pict  0       275   230 0.31  1     3     1     9.5   1      1    1      0      9       398
+ Lop_cali  1       256   162 0.24  1     3     1    14.2   2      0    0      0     15      1420
+ Col_virg  1       230   170 0.77  1     3     1    13.7   1      0    0      0     17      1156
+ Ale_grae  1       330   501 2.23  1     3     1    15.5   1      0    1      0     15       362
+ Ale_rufa  0       330   439 0.22  1     3     2    11.2   2      0    0      0      2        20
+ Per_perd  0       300   386 2.4   1     3     1    14.6   1      0    1      0     24       676
+ Cot_pect  0       182    95 0.33  3    NA     2     7.5   1      0    0      0      3      NA
+ Cot_aust  1       180    95 0.69  2    12     2    11     1      0    0      1     11       601
+ Lop_nyct  0       800  1150 0.28  1    12     2     5     1      1    1      0      4         6
+ Pha_colc  1       710   850 1.25  1    12     2    11.8   1      1    0      0     27       244
+ Syr_reev  0       750   949 0.2   1    12     2     9.5   1      1    1      0      2         9
+ Tet_tetr  0       470   900 4.17  1     3     1     7.9   1      1    1      0      2        13
+ Lag_lago  0       390   517 7.29  1     0     1     7.5   1      1    1      0      2         4
+ Ped_phas  0       440   815 1.83  1     3     1    12.3   1      1    0      0      1        22
+ Tym_cupi  0       435   770 0.26  1     4     1    12     1      0    0      0      3        57
+ Van_vane  0       300   226 3.93  2    12     3     3.8   1      0    0      0      8       124
+ Plu_squa  0       285   318 1.67  3    12     3     4     1      0    0      1      2         3
+ Pte_alch  0       350   225 1.21  2     0     1     2.5   2      0    0      0      1         8
+ Pha_chal  0       320   350 0.6   1    12     2     2     2      1    0      0      8        42
+ Ocy_loph  0       330   205 0.76  1     0     1     2     7      1    0      1      4        23
+ Leu_mela  0       372  NA   0.07  1    12     2     2     1      1    0      0      6        34
+ Ath_noct  1       220   176 4.84  1    12     3     3.6   1      1    0      0      7       221
+ Tyt_alba  0       340   298 8.9   2     0     3     5.7   2      1    0      0      1         7
+ Dac_nova  1       460   382 0.34  1    12     3     2     1      1    0      0      7        21
+ Lul_arbo  0       150  32.1 1.78  2     4     2     3.9   2      1    0      0      1         5
+ Ala_arve  1       185  38.9 5.19  2    12     2     3.7   3      0    0      0     11       391
+ Pru_modu  1       145  20.5 1.95  2    12     2     3.4   2      1    0      0     14       245
+ Eri_rebe  0       140  15.8 2.31  2    12     2     5     2      1    0      0     11       123
+ Lus_mega  0       161  19.4 1.88  3    12     2     4.7   2      1    0      0      4         7
+ Tur_meru  1       255  82.6 3.3   2    12     2     3.8   3      1    0      0     16       596
+ Tur_phil  1       230  67.3 4.84  2    12     2     4.7   2      1    0      0     12       343
+ Syl_comm  0       140  12.8 3.39  3    12     2     4.6   2      1    0      0      1         2
+ Syl_atri  0       142  17.5 2.43  2     5     2     4.6   1      1    0      0      1         5
+ Man_mela  0       180  NA   0.04  1    12     3     1.9   5      1    0      0      1         2
+ Man_mela  0       265    59 0.25  1    12     2     2.6   NA     1    0      0      1        80
+ Gra_cyan  0       275   128 0.83  1    12     3     3     2      1    0      1      1      NA
+ Gym_tibi  1       400   380 0.82  1    12     3     4     1      1    0      0     15       448
+ Cor_mone  0       335   203 3.4   2    12     2     4.5   1      1    0      0      2         3
+ Cor_frug  1       400   425 3.73  1    12     2     3.6   1      1    0      0     10       182
+ Stu_vulg  1       222  79.8 3.33  2     6     2     4.8   2      1    0      0     14       653
+ Acr_tris  1       230 111.3 0.56  1    12     2     3.7   1      1    0      0      5        88
+ Pas_dome  1       149  28.8 6.5   1     6     2     3.9   3      1    0      0     12       416
+ Pas_mont  0       133    22 6.8   1     6     2     4.7   3      1    0      0      3        14
+ Aeg_temp  0       120  NA   0.17  1     6     2     4.7   3      1    0      0      3        14
+ Emb_gutt  0       120    19 0.15  1     4     1     5     3      0    0      0      4       112
+ Poe_gutt  0       100  12.4 0.75  1     4     1     4.7   3      0    0      0      1        12
+ Lon_punc  0       110  13.5 1.06  1     0     1     5     3      0    0      0      1         8
+ Lon_cast  0       100  NA   0.13  1     4     1     5     NA     0    0      1      4        45
+ Pad_oryz  0       160  NA   0.09  1     0     1     5     NA     0    0      0      2         6
+ Fri_coel  1       160  23.5 2.61  2    12     2     4.9   2      1    0      0     17       449
+ Fri_mont  0       146  21.4 3.09  3    10     2     6     NA     1    0      0      7       121
+ Car_chlo  1       147  29   2.09  2     7     2     4.8   2      1    0      0      6        65
+ Car_spin  0       117  12   2.09  3     3     1     4     2      1    0      0      3        54
+ Car_card  1       120  15.5 2.85  2     4     1     4.4   3      1    0      0     14       626
+ Aca_flam  1       115  11.5 5.54  2     6     1     5     2      1    0      0     10       607
+ Aca_flavi 0       133  17   1.67  2     0     1     5     3      0    1      0      3        61
+ Aca_cann  0       136  18.5 2.52  2     6     1     4.7   2      1    0      0     12       209
+ Pyr_pyrr  0       142  23.5 3.57  1     4     1     4     3      1    0      0      2      NA
+ Emb_citr  1       160  28.2 4.11  2     8     2     3.3   3      1    0      0     14       656
+ Emb_hort  0       163  21.6 2.75  3    12     2     5     1      0    0      0      1         6
+ Emb_cirl  1       160  23.6 0.62  1    12     2     3.5   2      1    0      0      3        29
+ Emb_scho  0       150  20.7 5.42  1    12     2     5.1   2      0    0      1      2         9
+ Pir_rubr  0       170  31   0.55  3    12     2     4     NA     1    0      0      1         2
+ Age_phoe  0       210  36.9 2     2     8     2     3.7   1      0    0      1      1         2
+ Stu_negl  0       225 106.5 1.2   2    12     2     4.8   2      0    0      0      1         2")
+```
+
+### Creamos un data frame con base en la tabla Input
+
+Para convertir una tabla en un marco de datos utilizamos la función `read.table` y la función `textConnection` para que conecte el texto del objeto Input. Asimismo, especificamos en el argumento `header` la palabra TRUE que indica que la primera fila corresponde a los nombres de las variables.
+
+```{r}
+Data = read.table(textConnection(Input),header=TRUE)
+```
+
+## Análisis Exploratorio de datos
+
+```{r}
+#nombres de las variables
+names(Data) 
+
+#estructura de los datos
+str(Data) 
+```
+
+La variable dependiente "Status" presenta valores enteros numéricos al igual que la mayoría de las variables. La variable "Species" es la única de tipo categórico.
+
+### Conversión de variables
+
+Trabajaremos solo con variables numéricas a fin de realizar el análisis de correlación múltiple e identificar los mejores predictores para el modelo. Primero eliminamos la variable "Species" porque no es numérica.
+
+```{r}
+Data$Species <- NULL
+```
+
+Ahora, nos aseguramos que a las demás variables Quarto las reconozca como numéricas.
+
+```{r}
+# Convertimos las variables en númericas
+Data$Status  = as.numeric(Data$Status)
+Data$Length  = as.numeric(Data$Length)
+Data$Migr    = as.numeric(Data$Migr)
+Data$Insect  = as.numeric(Data$Insect)
+Data$Diet    = as.numeric(Data$Diet)
+Data$Broods  = as.numeric(Data$Broods)
+Data$Wood    = as.numeric(Data$Wood)
+Data$Upland  = as.numeric(Data$Upland)
+Data$Water   = as.numeric(Data$Water)
+Data$Release = as.numeric(Data$Release)
+Data$Indiv   = as.numeric(Data$Indiv)
+```
+
+### Datos perdidos
+
+Usamos la función `table(complete.cases())` para explorar cuantos valores faltantes hay o graficarlo para tener una idea rápida de la cantidad de valores perdidos en el conjunto de datos.
+
+```{r}
+table(complete.cases(Data)) # Explorar
+```
+
+Observamos que hay 12 valores perdidos.
+
+-   Graficamos los datos perdidos
+
+Los datos faltantes tienen un gran impacto en el modelado. Por lo tanto, se puede usar un gráfico faltante para tener una idea rápida de la cantidad de datos faltantes en el conjunto de datos. El eje "x" muestra atributos y el eje "y" muestra instancias. Las líneas horizontales indican datos faltantes para una instancia, los bloques verticales representan datos faltantes para un atributo o variable. Utilizamos la función `missmap` del paquete `Amelia`
+
+```{r}
+missmap(Data, col=c("red", "navyblue"), legend=FALSE)
+```
+
+Otra opción es utilizando la función `aggr`del paquete `VIM` que nos permite visualizar la estructura de los datos faltantes. El argumento `sortVars` indica si las variables deben ordenarse según el número de datos faltantes.
+
+```{r}
+aggr_plot <- aggr(Data, col=c('navyblue','red'), 
+                  numbers=TRUE, sortVars=TRUE, 
+                   cex.axis=.6, gap=4)
+```
+
+Son 4 las variables que tienen valores perdidos: "Mass", "Broods", "Indiv" e "Insect".
+
+#### Eliminación de los valores perdidos
+
+```{r}
+Data <-Data[complete.cases(Data), ] #Quedarnos solo con casos #completos
+
+table(complete.cases(Data)) #Observamos que ya no figura FALSE
+```
+
+## Analisis de correlación
+
+#### Con el paquete corrplot
+
+Proporciona una herramienta de exploración visual en la matriz de correlación que admite el reordenamiento automático de variables para ayudar a detectar patrones ocultos entre ellas.
+
+Hay siete métodos de visualización en el paquete: `circle`, `square`, `ellipse`, `number`, `shade`, `color`, `pie`. La intensidad del color es proporcional a los coeficientes de correlación. El azul representa una correlación positiva y el rojo una negativa. Cuanto mayor sea el punto, mayor será la correlación.
+
+```{r}
+correlations <- cor(Data[,1:14])
+
+corrplot(correlations, method = "circle")
+```
+
+#### Con el paquete PerformanceAnalytics
+
+Se muestra el valor absoluto de la correlación más el resultado de la prueba cor, además de los diagramas de dispersión bivariados con una línea ajustada. Se utiliza la función `chart.Correlatio`para graficarlo.
+
+```{r message=FALSE, warning=FALSE}
+
+chart.Correlation(Data,
+                  method="spearman",
+                  histogram=TRUE,
+                  pch=16)
+```
+
+## Análisis de regresión logística
+
+Deseamos conocer cómo la presencia o ausencia de aves introducidas en Nueva Zelanda puede ser predicha por más de una variable explicativa.
+
+### Selección de variables
+
+Utilizaremos solo 6 variables para la regresión:
+
+| Variable | Descripción                                                  |
+|:---------|:-------------------------------------------------------------|
+| Status   | Ausencia o presencia de 67 especies de aves en Nueva Zelanda |
+| Release  | Número de liberaciones                                       |
+| Migr     | 1: sedentarios, 2: mixtos, 3: migratorias                    |
+| Upland   | 0: No es de altura, 1: Es de altura                          |
+| Indiv    | Número de individuos liberados                               |
+
+Guardamos las 6 variables en el objeto "Data_Final".
+
+```{r}
+Data_Final <- Data %>% select(Status, Release, Migr, Upland, Indiv)
+```
+
+### Método Forward
+
+#### Modelo nulo
+
+Corremos un modelo nulo.
+
+```{r}
+
+modelo_nulo = glm(Status ~ 1,
+                 data=Data_Final,
+                 family = binomial)
+
+summary(modelo_nulo)
+```
+
+Definimos y calculamos el ajuste del modelo.
+
+```{r}
+#Definir el modelo
+modelo_0 <- list(modelo_nulo)
+
+#Especificar el nombre del modelo
+mod.names0 <- c('status')
+
+#Calcular el AIC del modelo nulo
+aictab(cand.set = modelo_0, modnames = mod.names0)
+
+```
+
+El AIC del modelo nulo es 92.4.
+
+#### Modelos de primer orden
+
+Realizamos nuestro primer modelo de primer orden.
+
+```{r}
+modelo_1.1 <- glm(Status ~ Release, data = Data_Final, family = binomial )
+summary(modelo_1.1)
+```
+
+Calculamos el intervalo de confianza de los coeficientes.
+
+```{r}
+exp(cbind(coef(modelo_1.1), confint(modelo_1.1)))
+```
+
+Hacemos lo propio con el segundo modelo de primer orden.
+
+```{r}
+modelo_1.2 <- glm(Status ~ Migr, data  = Data_Final, family = binomial)
+summary(modelo_1.2)
+
+exp(cbind(coef(modelo_1.2), confint(modelo_1.2)))
+```
+
+Hacemos lo propio con el tercer modelo de primer orden.
+
+```{r}
+modelo_1.3 <- glm(Status ~ Upland, data = Data_Final, family = binomial)
+summary(modelo_1.3)
+
+exp(cbind(coef(modelo_1.3), confint(modelo_1.3)))
+```
+
+```{r}
+modelo_1.4 <- glm(Status ~ Indiv, data = Data_Final, family = binomial)
+summary(modelo_1.4)
+
+exp(cbind(coef(modelo_1.4), confint(modelo_1.4)))
+```
+
+
+**Comparación de AIC**
+
+```{r}
+#Definir la lista de modelos
+models1 <- list(modelo_1.1, modelo_1.2, modelo_1.3, modelo_1.4)
+
+#Especificar los nombres del modelo
+mod.names1 <- c('st.release', 'st.migr', 'st.upland', 'st.indiv')
+
+#Calcular el AIC de cada modelo
+aictab(cand.set = models1, modnames = mod.names1)
+```
+
+Observamos que el modelo 1.1 es el que tiene el menor AIC, por lo que "Release" entraría primero al modelo
+
+#### Modelos de segundo orden
+
+```{r}
+modelo_2.1 <- glm(Status ~ Release + Indiv, data = Data_Final, family = binomial)
+summary(modelo_2.1)
+```
+
+```{r}
+modelo_2.2 <- glm(Status ~ Release + Migr, data  = Data_Final, family = binomial)
+summary(modelo_2.2)
+```
+
+```{r}
+modelo_2.3 <- glm(Status ~ Release + Upland, data  = Data_Final, family = binomial)
+summary(modelo_2.3)
+```
+
+**Comparación de AIC**
+
+```{r}
+#Definir la lista de modelos
+models2 <- list(modelo_2.1, modelo_2.2, modelo_2.3)
+
+#Especificar los nombres del modelo
+mod.names2 <- c('st.release.indiv','st.release.migr',
+                'st.release.upland')
+
+#Calcular el AIC de cada modelo
+aictab(cand.set = models2, modnames = mod.names2)
+```
+
+Observamos que el modelo 2.3 es el que tiene el menor AIC por lo que "Release" y "Mass" se quedaría en el modelo si disminuye el aic del modelo modelo_2.1 en más del 4%.
+
+**Comparación de AIC**
+
+```{r}
+#Definir la lista de modelos
+models3 <- list(modelo_1.1, modelo_2.3)
+
+#Especificar los nombres del modelo
+mod.names3 <- c('st.release', 'st.release.upland')
+
+#Calcular el AIC de cada modelo
+aictab(cand.set = models3, modnames = mod.names3)
+```
+
+Dado que uplanbd si disminuye el AIC en más del 4% las variables que entran al modelo son release y upland.
+
+#### Odds ratio del modelo final
+
+### Odds ratio
+
+Para estimas los odds ratio debemos exponenciar cada coeficientes del modelo de regresión logística final.
+
+```{r}
+exp(coef(modelo_2.3))
+```
+
+### Intervalo de confianza del Odds ratio
+
+Para estimar los odds ratio debemos exponenciar cada coeficiente del modelo de regresión logística final.
+
+```{r}
+exp(cbind(coef(modelo_2.3), confint(modelo_2.3)))
+```
+
+## Análisis post regresión
+
+### Evaluación del modelo ajustado
+
+Luego de seleccionar el mejor modelo es importante evaluar su ajuste. Primero evaluamos mediante pruebas de significación de los coeficientes y luego medinate pruebas de bondad de ajuste.
+
+#### Residuos estandarizados
+
+Es una medida de fuerza de la diferencia entre los valores observados y esperados. Permite identificar posibles valores atípicos que pueden repercutir negativamente en la calidad de la predicción.
+
+```{r}
+plot(fitted(modelo_2.3),
+     rstandard(modelo_2.3))
+```
+
+#### Revisando la dispersión
+
+Si la relación entre la desviación residual y los grados de libertad residuales excede 1.5, el modelo está sobredispersado. La dispersión excesiva indica que el modelo no se ajusta bien a los datos: es posible que las variables explicativas no describan bien la variable dependiente o que el modelo no se especifique correctamente para estos datos. Si hay sobredispersión, una posible solución es utilizar la opción de familia Poisson, quasipoisson, binomial negativa, zero inflado, quasibinomial, etc.
+
+##### Desviación residual
+
+La desviación residual nos dice qué tan bien se puede predecir la variable de respuesta mediante un modelo con p variables predictoras. Cuanto menor sea el valor, mejor podrá el modelo predecir el valor de la variable de respuesta.
+
+```{r}
+#desviación residual
+summary(modelo_2.3)
+```
+
+La desviación residual es 7.4094.
+
+```{r}
+# Calculando la libertad residual
+summary(modelo_2.3)$deviance / summary(modelo_2.3)$df.residual
+```
+
+Confirmamos que el modelo es correcto.
+
+#### Chi cuadrado
+
+Prueba los coeficientes del modelo logístico y determina si un modelo es "útil".
+
+```         
+    Chi2 = Desviación nula – Desviación residual
+```
+
+##### Primer modelo
+
+```{r}
+modelChi1=modelo_2.3$null.deviance - modelo_2.3$deviance
+modelChi1
+```
+
+### Bondad de ajuste del modelo
+
+Una prueba de bondad de ajuste dice qué tan bien el modelo describe la variable dependiente (de respuesta). Hay diferentes pruebas para hacerlo, entre ellas la prueba de Hosmer-Lemeshow y los R2 para regresión logística.
+
+#### Prueba de Hosmer-Lemeshow
+
+Es una prueba de bondad de ajuste para la regresión logística, especialmente para los modelos de predicción de riesgo. Específicamente, esta prueba calcula si las tasas de eventos observadas coinciden con las tasas de eventos esperados en los subgrupos de población. Obtener un resultado significativo en la prueba indicaría que el modelo no está bien estimado, por lo que el ajuste no es bueno.
+
+```{r}
+Hosmer1 <- modelChi1/modelo_2.3$null.deviance
+Hosmer1
+```
+
+El modelo arroja un p value superior a 0.05, por lo que no se requiere refinar el modelo. A esta prueba se le pueden hacer verificaciones adicionales como la inspección de residuos como las realizadas anteriormente, a fin de identificar valores atípicos y su posible influencia en el modelo ajustado.
+
+#### R2 para regresión logística
+
+Se emplean para medir la utilidad del modelo, son similares al coeficiente de determinación (R2) en la regresión lineal. A continuación, veremos dos de esas estadísticas.
+
+### Grados de libertad
+
+Los grados de libertad en estadística se definen como el número de observaciones que son libres de variar.
+
+```{r}
+df.residual(modelo_2.3)
+```
+
+##### Cox & Snell
+
+Estima la proporción de varianza de la variable dependiente que es explicada por las independientes. Está basada en la comparación del log de la verosimilitud para el modelo con respecto al log del modelo de línea base. Sus valores oscilan entre el 0 y 1. Se divide con el numero de observaciones que, en este caso, es 64.
+
+```{r}
+Cox_Sme <- 1 - exp((modelo_2.3$deviance - modelo_2.3$null.deviance)/64)
+Cox_Sme
+```
+
+##### Nagelkerke
+
+Incrementa el coeficiente de Cox y Snell para cubrir todo el rango de 0 a 1.
+
+```{r}
+Nagel <- Cox_Sme/(1-(exp(-(modelo_1.1$null.deviance/64))))
+Nagel
+```
+
+
+#### Estimar las diferencias entre los grados de libertad
+
+```{r}
+pronos1 = predict(modelo_2.3, type = "response")
+pronos1
+```
+
+### Supuestos
+
+Post regresión logística no verifica el supuesto de distribución de las variables independientes. No obstante, es importante que dichas variables no estén altamente correlacionadas unas con otras porque podría causar problemas de colinearidad.
+
+#### Multicolinealidad
+
+La multicolinealidad corresponde a una situación en la que los datos contienen variables predictoras altamente correlacionadas. Esto es un problema en el análisis de regresión logística que debe solucionarse eliminando las variables en cuestión. Una forma de evaluar es utilizando la función `vif` (siglas en inglés del factor de inflación de la varianza) del paquete `car` .
+
+```{r}
+vif(modelo_2.3)
+```
+
+Cuando el valor del vif supera 5 indica una cantidad problemática de colinealidad; sin embargo, las variables de nuestro ejemplo tienen un valor inferior a 5 por lo que no hay colinealidad, siendo la precisión de nuestro modelo alta.
+
+#### Sobredispersión
+
+Para evaluar sobredispersión podemos calcular el ratio de la desviación residual sobre los residuos de los grados de libertad. Si encontramos que este ratio es cercano a 1 no sospechamos sobredispesión.
+
+```{r}
+deviance(modelo_2.3)/df.residual(modelo_2.3) 
+```

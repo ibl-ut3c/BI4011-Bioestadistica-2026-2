@@ -1,0 +1,96 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+library(geodata)
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(terra)
+
+# 1. Descargar límites de Perú a nivel departamental
+peru_raw <- geodata::gadm(country = "PER", level = 1, path = tempdir())
+peru <- st_as_sf(peru_raw)
+
+# 2. Datos de vacunación por departamento
+vac_data <- data.frame(
+  NAME_1 = c("Tumbes", "Piura", "Lambayeque", "La Libertad", "Cajamarca",
+             "Amazonas", "San Martín", "Loreto", "Ancash", "Huánuco",
+             "Pasco", "Ucayali", "Junín", "Lima", "Callao", "Huancavelica",
+             "Ayacucho", "Cusco", "Apurímac", "Madre de Dios", "Puno",
+             "Arequipa", "Moquegua", "Tacna", "Ica"),
+  porcentaje = c(82.6, 83.0, 85.1, 85.9, 83.4, 83.2, 74.1, 74.1, 82.0, 82.0,
+                 89.2, 74.3, 86.7, 86.0, 86.0, 78.7, 86.0, 79.5, 74.5, 72.0,
+                 87.0, 82.9, 82.0, 82.1, 83.6)
+)
+
+# 3. Unir datos espaciales con datos de vacunación
+peru_mapa <- left_join(peru, vac_data, by = "NAME_1")
+
+# 4. Crear categorías discretas y eliminar filas sin categoría
+peru_mapa <- peru_mapa %>%
+  mutate(categoria = cut(porcentaje,
+                         breaks = c(70, 75, 80, 85, 90, 100),
+                         labels = c("70-75%", "75-80%", "80-85%", "85-90%", "90-100%"),
+                         include.lowest = TRUE)) %>%
+  filter(!is.na(categoria))
+
+# 5. Calcular centroides para las etiquetas
+centroids <- st_centroid(peru_mapa)
+
+# Función auxiliar para crear sombras gruesas (desplazamientos)
+shadow_offsets <- expand.grid(
+  x = c(-0.06, 0, 0.06),
+  y = c(-0.06, 0, 0.06)
+) %>% filter(!(x == 0 & y == 0))
+
+# 6. Crear el mapa
+p <- ggplot(peru_mapa) +
+  geom_sf(aes(fill = categoria), color = "gray30")
+
+# Añadir sombras: varias capas desplazadas en blanco
+for(i in seq_len(nrow(shadow_offsets))) {
+  p <- p + geom_text(
+    data = centroids,
+    aes(label = NAME_1, geometry = geometry),
+    stat = "sf_coordinates",
+    size = 2.2,
+    family = "Impact",
+    color = "white",
+    nudge_x = shadow_offsets$x[i],
+    nudge_y = shadow_offsets$y[i]
+  )
+}
+
+# Añadir texto negro centrado
+p <- p + geom_text(
+  data = centroids,
+  aes(label = NAME_1, geometry = geometry),
+  stat = "sf_coordinates",
+  size = 2.2,
+  family = "Impact",
+  color = "black"
+) +
+  scale_fill_manual(
+    name = "Cobertura (%)",
+    values = c("70-75%" = "#ffffff", 
+               "75-80%" = "#bfbfbf", 
+               "80-85%" = "#7f7f7f", 
+               "85-90%" = "#404040", 
+               "90-100%" = "#000000"),
+    drop = TRUE
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    legend.position = "right",
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+print(p)
+
+```

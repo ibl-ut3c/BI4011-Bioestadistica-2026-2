@@ -1,0 +1,213 @@
+---
+title: "Laboratorio 1"
+format:
+  docx: default
+  pdf: default
+---
+
+## Paquetes y base de datos
+
+```{r paquetes}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(knitr)
+library(scales)
+```
+
+```{r lectura}
+Data <- read_excel("PC1_Hackaton.xlsx", sheet = "data")
+dim(Data)
+# View(Data)
+```
+
+## 
+
+En `coinfeccion_diagnóstico` se considera que todos valores en blanco son iguales a 'no coinfección'.
+
+```{r limpieza}
+# Convierte columnas con fechas mezcladas con texto a Date
+a_fecha <- function(x) {
+  if (inherits(x, c("Date", "POSIXct"))) return(as.Date(x))
+  as.Date(suppressWarnings(as.numeric(as.character(x))), origin = "1899-12-30")
+}
+
+Data <- Data %>%
+  mutate(
+    coinfeccion = factor(ifelse(is.na(`coinfeccion_diagnóstico`), "No", "Si"),
+                         levels = c("No", "Si"),
+                         labels = c("Sin coinfección", "Con coinfección")),
+    sexo = factor(sexo_, levels = c("F", "M"), labels = c("Femenino", "Masculino")),
+    condicion_final = factor(condicion_final, levels = c("Vivo", "Muerto")),
+    estrato_ = factor(estrato_),
+    fec_hos_ = a_fecha(fec_hos_)
+  )
+
+# Nombres sin espacios ni símbolos para trabajar más cómodo
+Data <- Data %>%
+  rename(edad = edad_, apache = `APACHE II`, ncomorb = `Numero de comorbilidades`,
+         vmi = `VMI_<48h`, cvc = `Cateter_ven_cen_<48h`, cur = `Cateter_uri_<48h`,
+         antib = `uso_antib_<48h_`, cortico = `Uso_corticoes_<48h`,
+         area = area_, seguro = tip_ss_, estrato = estrato_,
+         inmunosup = `Toma medicamentos inmunosupresores`)
+
+summary(Data$fec_hos_)
+```
+
+
+```{r}
+shapiro.test(Data$edad)
+shapiro.test(Data$`apache`)
+shapiro.test(Data$`ncomorb`)
+```
+Ninguna de las variables continuas sigue una distribución normal según la prueba de Shapiro-Wilk (p < 0.05).
+
+##
+
+Grupos etarios para análisis de frecuencia
+```{r}
+Data$grupo_etario <- cut(Data$edad, 
+                           breaks = c(-Inf, 39.9, 59.9, Inf),
+                           labels = c("<40 años", "40 a 59.9 años", ">=60 años"),
+                           right = FALSE)
+```
+
+
+Analizar las variables en relación a la coinfección.
+
+Función auxiliar
+```{r}
+### Código para crear nuestra propia función de estadísticos de resumen
+estadisticas <- function(x) {
+  promedio <- mean(x)
+  desviacion_estandar <- sd(x)
+  mediana <- median(x)
+  rango_intercuartilico <- IQR(x)
+  
+  return(c(Promedio = promedio, 
+           DesviacionEstandar = desviacion_estandar, 
+           Mediana = mediana, 
+           RangoIntercuartilico = rango_intercuartilico))
+}
+```
+
+Para variables continuas
+```{r}
+# Resumen y comparación para edad_
+stats_edad_coinf <- aggregate(edad ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_edad_coinf)
+
+# Resumen y comparación para APACHE II
+stats_apache_coinf <- aggregate(`apache` ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_apache_coinf)
+
+# Resumen para Número de comorbilidades
+stats_ncomorb_coinf <- aggregate(`ncomorb` ~ coinfeccion_diagnóstico, data = Data, FUN = estadisticas)
+print(stats_ncomorb_coinf)
+```
+
+```{r}
+chisq.test(Data$sexo,Data$coinfeccion) 
+```
+
+
+
+## Demografía básica de la población
+```{r}
+ggplot(Data, aes(x = edad, fill = sexo)) +
+  geom_density(alpha = 0.5, color = "black") +
+  geom_vline(
+    data = Data %>% group_by(sexo) %>% summarise(mediana = median(edad, na.rm = TRUE)),
+    aes(xintercept = mediana, color = sexo),
+    linetype = "dashed", size = 1
+  ) +
+  scale_fill_manual(values = c("Masculino" = "#2b5c8f", "Femenino" = "#d95f02")) +
+  scale_color_manual(values = c("Masculino" = "#1b3c5f", "Femenino" = "#993f00")) +
+  labs(
+    title = "Figura 1. Distribución de la Población según Edad y Género",
+    subtitle = "Las líneas punteadas indican la mediana de edad por cada sexo",
+    x = "Edad (Años)",
+    y = "Densidad",
+    fill = "Género",
+    color = "Género"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5, color = "gray30"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+##
+
+```{r}
+ggplot(Data, aes(x = coinfeccion, y = fec_hos_, fill = coinfeccion)) +
+  geom_boxplot(width = 0.5, alpha = 0.85, outlier.shape = NA) +
+  geom_jitter(width = 0.12, alpha = 0.5, size = 1.6) +
+  scale_fill_manual(values = col_coinf) +
+  scale_y_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  labs(x = NULL, y = "Fecha de hospitalización (fec_hos_)", title = "Distribución de la población de estudio según coinfección y tiempo de hospitalización.") +
+  theme_minimal() + theme(legend.position = "none")
+```
+
+
+
+## Figura 2. Distribución según coinfección y tiempo de hospitalización
+
+El tiempo de hospitalización se representa con la variable `fec_hos_` (fecha de hospitalización) tal como está en la base.
+
+```{r fig2, fig.width=9, fig.height=5}
+g2a <- ggplot(Data, aes(x = coinfeccion, y = fec_hos_, fill = coinfeccion)) +
+  geom_boxplot(width = 0.5, alpha = 0.85, outlier.shape = NA) +
+  geom_jitter(width = 0.12, alpha = 0.5, size = 1.6) +
+  scale_fill_manual(values = col_coinf) +
+  scale_y_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  stat_compare_means(method = "wilcox.test", label.x = 1.25,
+                     label.y = max(Data$fec_hos_) + 20) +
+  labs(x = NULL, y = "Fecha de hospitalización (fec_hos_)", title = "A. Boxplot") +
+  theme_minimal() + theme(legend.position = "none")
+
+g2b <- ggplot(Data, aes(x = fec_hos_, fill = coinfeccion)) +
+  geom_histogram(bins = 25, color = "white", alpha = 0.9) +
+  facet_wrap(~ coinfeccion, ncol = 1) +
+  scale_fill_manual(values = col_coinf) +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  labs(x = "Fecha de hospitalización (fec_hos_)", y = "Número de pacientes",
+       title = "B. Histograma") +
+  theme_minimal() + theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggarrange(g2a, g2b, ncol = 2)
+```
+
+
+```{r fig3, fig.width=8, fig.height=5}
+dat3 <- Data %>%
+  count(coinfeccion, condicion_final) %>%
+  group_by(coinfeccion) %>%
+  mutate(pct = n / sum(n),
+         etiqueta = paste0(n, " (", percent(pct, accuracy = 0.1), ")"))
+
+p3 <- chisq.test(table(Data$coinfeccion, Data$condicion_final))$p.value
+
+ggplot(dat3, aes(x = coinfeccion, y = pct, fill = condicion_final)) +
+  geom_col(color = "white", width = 0.6) +
+  geom_text(aes(label = etiqueta), position = position_stack(vjust = 0.5), color = "white") +
+  scale_y_continuous(labels = percent) +
+  scale_fill_manual(values = c("Vivo" = "#4C78A8", "Muerto" = "#B22222"), name = "Condición final") +
+  labs(x = NULL, y = "Porcentaje de pacientes",
+       title = "Mortalidad según diagnóstico de coinfección bacteriana",
+       caption = paste0("Chi-cuadrado, p = ", fmt_p(p3))) +
+  theme_minimal()
+```
+##
+
+```{r}
+write.csv(Data, "Data_procesada.csv", row.names = FALSE)
+cat("\n✓ Datos procesados exportados a: Data_procesada.csv\n")
+cat("  Dimensiones:", nrow(Data), "filas,", ncol(Data), "columnas\n")
+```
+

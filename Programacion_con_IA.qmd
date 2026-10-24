@@ -286,7 +286,6 @@ if (!require("remotes")) install.packages("remotes")
 remotes::install_version("VIM")
 ```
 
-
 ```{r}
 # Llamamos a los paquetes
 library(readr) #leer archivos

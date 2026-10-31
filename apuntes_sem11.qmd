@@ -1,0 +1,11 @@
+# Apuntes semana 11
+
+Las regresiones se comparan mediante el AIC.
+
+> A un menor AIC, a regresión es mejor
+
+## Regresión logística
+
+También permite emplea variables continuas como en la regresión lineal pero permite modelar el desenlace como un clasificador (interpretación categórica).
+
+Los modelos lineales son increíbles (por favor revisa esa clase porque es fija examen final y proyecto) porque permiten consideran los sezgos.
